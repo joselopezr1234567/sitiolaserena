@@ -74,6 +74,12 @@ h1 {
     font-family: "ITC Motter Corpus", "Rozha One", Arial, sans-serif;
 }
 
+.page-carrito h1,
+.page-mipedido h1,
+.nota-efectivo {
+    color: #ffffff;
+}
+
 /* --- ESTILOS PARA INDEX.HTML (Inicio) --- */
 .contenedor-principal {
     display: flex;
