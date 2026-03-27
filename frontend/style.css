@@ -93,7 +93,7 @@ h1 {
 .foto-index {
     width: 450px;
     height: 300px;
-    border: 1px solid #FF0000;
+    border: 1px solid #ffffff;
     border-radius: 18px;
     overflow: hidden;
     background-color: #111;
@@ -107,7 +107,7 @@ h1 {
 }
 
 .texto-rojo {
-    color: #FF0000;
+    color: #ffffff;
     font-size: 1.8rem;
     font-weight: bold;
     margin-top: 20px;
@@ -135,7 +135,7 @@ h1 {
 .cuadro-foto-menu {
     width: 250px;
     height: 250px;
-    border: 1px solid #FF0000;
+    border: 1px solid #ffffff;
     border-radius: 18px;
     overflow: hidden;
     background-color: #111;
@@ -149,7 +149,7 @@ h1 {
 }
 
 .texto-menu {
-    color: #FF0000;
+    color: #ffffff;
     font-size: 1.1rem;
     font-weight: bold;
     margin-top: 15px;
@@ -227,7 +227,7 @@ h1 {
 
 .btn-registro:hover {
     background-color: #FF0000;
-    color: #000 !important;
+    color: #ffffff !important;
 }
 
 /* --- LOGICA DE VISIBILIDAD (Importante para Login) --- */
