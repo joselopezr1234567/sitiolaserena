@@ -14,6 +14,7 @@ except Exception:
 SUCURSAL = "Coquimbo"
 API_URL = os.environ.get("API_URL", "https://sitiolaserena.onrender.com/api")
 PRINTER_IP = "192.168.0.10"
+TOP_BAR_BG = "#333"
 
 class DashboardPizzeria:
     def __init__(self, root):
@@ -35,9 +36,10 @@ class DashboardPizzeria:
         style.configure("Treeview", background="#222", foreground="white", fieldbackground="#222", rowheight=30)
         style.map("Treeview", background=[('selected', '#FF0000')])
 
-        # Título
-        title_label = tk.Label(root, text=f"PEDIDOS ENTRANTES - {SUCURSAL.upper()}", font=("Arial", 24, "bold"), fg="#FF0000", bg="#111")
-        title_label.pack(pady=20)
+        header = tk.Frame(root, bg=TOP_BAR_BG)
+        header.pack(fill=tk.X)
+        title_label = tk.Label(header, text=f"PEDIDOS ENTRANTES - {SUCURSAL.upper()}", font=("Arial", 24, "bold"), fg="#FF0000", bg=TOP_BAR_BG)
+        title_label.pack(pady=15)
 
         # Tabla de Pedidos
         columns = ("id", "usuario", "telefono", "productos", "total", "estado", "fecha")
@@ -350,14 +352,14 @@ class DashboardPizzeria:
         win.geometry("900x550")
         win.configure(bg="#111")
 
-        header = tk.Frame(win, bg="#222")
+        header = tk.Frame(win, bg=TOP_BAR_BG)
         header.pack(fill=tk.X, padx=15, pady=15)
 
-        lbl_titulo = tk.Label(header, text=f"CIERRE DE CAJA - {SUCURSAL.upper()} (HOY)", font=("Arial", 16, "bold"), fg="#ffffff", bg="#222")
+        lbl_titulo = tk.Label(header, text=f"CIERRE DE CAJA - {SUCURSAL.upper()} (HOY)", font=("Arial", 16, "bold"), fg="#ffffff", bg=TOP_BAR_BG)
         lbl_titulo.pack(side=tk.LEFT, padx=10, pady=10)
 
         total_var = tk.StringVar(value="TOTAL: $0")
-        lbl_total = tk.Label(header, textvariable=total_var, font=("Arial", 16, "bold"), fg="#00FF00", bg="#222")
+        lbl_total = tk.Label(header, textvariable=total_var, font=("Arial", 16, "bold"), fg="#00FF00", bg=TOP_BAR_BG)
         lbl_total.pack(side=tk.RIGHT, padx=10, pady=10)
 
         columns = ("id", "hora", "cliente", "telefono", "total")

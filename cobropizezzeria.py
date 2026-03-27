@@ -79,7 +79,7 @@ class CobroPizezzeriaApp:
         self.root.geometry("920x520")
         self.root.configure(bg="#111")
 
-        header = tk.Frame(self.root, bg="#222")
+        header = tk.Frame(self.root, bg="#333")
         header.pack(fill=tk.X, padx=15, pady=15)
 
         tk.Label(
@@ -87,7 +87,7 @@ class CobroPizezzeriaApp:
             text="COBRO PIZZERÍA (VENTAS Y COBRO 10% + IVA POR MES)",
             font=("Arial", 16, "bold"),
             fg="#ffffff",
-            bg="#222",
+            bg="#333",
         ).pack(side=tk.LEFT, padx=10, pady=10)
 
         self.btn_cargar = tk.Button(

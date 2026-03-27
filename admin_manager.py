@@ -88,10 +88,10 @@ class AdminManager:
         self.limpiar_pantalla()
         
         # Título arriba
-        header = tk.Frame(self.root, bg="#FF0000", height=70)
+        header = tk.Frame(self.root, bg="#333", height=70)
         header.pack(fill=tk.X)
         tk.Button(header, text="ATRÁS", command=self.mostrar_menu_principal, bg="black", fg="black", font=("Arial", 12, "bold"), width=10).pack(side=tk.LEFT, padx=20, pady=15)
-        tk.Label(header, text=f"GESTIÓN: {sucursal.replace('_', ' ').upper()}", fg="black", bg="#FF0000", font=("Arial", 20, "bold")).pack(side=tk.LEFT, padx=100)
+        tk.Label(header, text=f"GESTIÓN: {sucursal.replace('_', ' ').upper()}", fg="white", bg="#333", font=("Arial", 20, "bold")).pack(side=tk.LEFT, padx=100)
 
         # Contenedor central
         content = tk.Frame(self.root, bg="#1a1a1a")
@@ -385,10 +385,10 @@ class AdminManager:
 
     def abrir_gestion_usuarios(self):
         self.limpiar_pantalla()
-        header = tk.Frame(self.root, bg="#555", height=70)
+        header = tk.Frame(self.root, bg="#333", height=70)
         header.pack(fill=tk.X)
         tk.Button(header, text="ATRÁS", command=self.mostrar_menu_principal, bg="black", fg="black", font=("Arial", 12, "bold"), width=10).pack(side=tk.LEFT, padx=20, pady=15)
-        tk.Label(header, text="GESTIÓN DE USUARIOS", fg="white", bg="#555", font=("Arial", 20, "bold")).pack(side=tk.LEFT, padx=100)
+        tk.Label(header, text="GESTIÓN DE USUARIOS", fg="white", bg="#333", font=("Arial", 20, "bold")).pack(side=tk.LEFT, padx=100)
 
         content = tk.Frame(self.root, bg="#1a1a1a")
         content.pack(fill=tk.BOTH, expand=True, padx=50, pady=20)
