@@ -62,6 +62,11 @@ h1 {
     font-family: "ITC Motter Corpus", "Rozha One", Arial, sans-serif;
 }
 
+.page-index .texto-rojo {
+    color: #ffffff;
+    font-family: "ITC Motter Corpus", "Rozha One", Arial, sans-serif;
+}
+
 /* --- ESTILOS PARA INDEX.HTML (Inicio) --- */
 .contenedor-principal {
     display: flex;
