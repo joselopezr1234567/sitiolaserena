@@ -30,6 +30,10 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+app.get('/', (req, res) => {
+    res.type('text/plain').send('API sitiolaserena OK. Prueba /api/health');
+});
+
 app.get('/api/health', (req, res) => {
     res.json({ ok: true });
 });
