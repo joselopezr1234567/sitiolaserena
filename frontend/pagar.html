@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pagar Pedido</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body style="background:#0e0e0e;color:#fff;font-family:Arial,Helvetica,sans-serif">
+  <div style="max-width:680px;margin:40px auto;padding:20px;border:2px solid #FF0000;border-radius:8px;background:#111">
+    <h1 style="color:#FFD700;margin-top:0">Pagar con Webpay</h1>
+    <p>Revisa tu carrito y presiona el botón para pagar con Webpay Plus.</p>
+    <div id="resumen" style="margin:15px 0;border:1px solid #333;padding:12px;border-radius:6px"></div>
+    <button id="btnPagar" style="background:#00FF00;color:#000;border:none;padding:12px 18px;font-weight:bold;border-radius:6px;cursor:pointer">
+      Pagar con Webpay
+    </button>
+    <button id="btnVolver" style="background:#555;color:#000;border:none;padding:12px 18px;font-weight:bold;border-radius:6px;cursor:pointer;margin-left:8px">
+      Volver
+    </button>
+  </div>
+  <script src="pago.js"></script>
+  <script>
+    function pintarResumen() {
+      const cont = document.getElementById('resumen');
+      const carrito = JSON.parse(localStorage.getItem('carrito') || '[]');
+      if (!carrito.length) {
+        cont.innerHTML = '<p style="color:#aaa">No tienes productos en el carrito.</p>';
+        return;
+      }
+      let total = 0;
+      const items = carrito.map(it => {
+        const p = parseInt(it.precio, 10) || 0;
+        total += p;
+        return `<div style="display:flex;justify-content:space-between;border-bottom:1px solid #222;padding:6px 0">
+          <span>${(it.nombre || it.producto_nombre || 'Producto').toUpperCase()}</span>
+          <strong>$${p.toLocaleString()}</strong>
+        </div>`;
+      }).join('');
+      cont.innerHTML = items + `<div style="text-align:right;margin-top:10px;font-size:1.1rem;color:#FFD700">
+        TOTAL: $${total.toLocaleString()}
+      </div>`;
+    }
+    pintarResumen();
+    document.getElementById('btnPagar').onclick = () => {
+      const sucursal = localStorage.getItem('ultima_sucursal')?.includes('coquimbo') ? 'coquimbo' : 'la_serena';
+      const usuario = localStorage.getItem('usuario_nombre') || 'Invitado';
+      const telefono = localStorage.getItem('usuario_telefono') || '';
+      pagarCarritoConWebpay(sucursal, usuario, telefono);
+    };
+    document.getElementById('btnVolver').onclick = () => {
+      const ultima = localStorage.getItem('ultima_sucursal') || 'index.html';
+      window.location.href = ultima;
+    };
+  </script>
+</body>
+</html>

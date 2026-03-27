@@ -1,0 +1,534 @@
+/* --- ESTILOS GENERALES --- */
+@import url('https://fonts.googleapis.com/css2?family=Rozha+One&display=swap');
+
+body {
+    background-color: #000000;
+    background-image: url('fondo.png');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    font-family: 'Rozha One', Arial, sans-serif;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 50px 20px; 
+    min-height: 100vh;
+    box-sizing: border-box;
+}
+
+.bg-conchevino {
+    background-color: #4b0015 !important;
+    background-image: none !important;
+}
+
+button, input, select, textarea {
+    font-family: 'Rozha One', Arial, sans-serif;
+}
+
+button {
+    border-radius: 12px;
+}
+
+body, body * {
+    text-shadow:
+        -1px 0 0 #000,
+        1px 0 0 #000,
+        0 -1px 0 #000,
+        0 1px 0 #000;
+}
+
+.btn-rojo,
+.btn-rojo-auth,
+.btn-pagar,
+.btn-volver:hover,
+.btn-registro:hover,
+.btn-eliminar:hover {
+    text-shadow: none;
+}
+
+h1 {
+    color: #FF0000;
+    text-transform: uppercase;
+    text-align: center;
+    letter-spacing: 5px;
+    margin-bottom: 50px;
+    margin-top: 0;
+}
+
+/* --- ESTILOS PARA INDEX.HTML (Inicio) --- */
+.contenedor-principal {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    gap: 80px; 
+    width: 100%;
+    margin-top: auto;
+    margin-bottom: auto;
+}
+
+.tarjeta-index {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-decoration: none; 
+    transition: transform 0.3s ease;
+}
+
+.tarjeta-index:hover {
+    transform: scale(1.03);
+}
+
+.foto-index {
+    width: 450px;
+    height: 300px;
+    border: 1px solid #FF0000;
+    border-radius: 18px;
+    overflow: hidden;
+    background-color: #111;
+}
+
+.foto-index img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 18px;
+}
+
+.texto-rojo {
+    color: #FF0000;
+    font-size: 1.8rem;
+    font-weight: bold;
+    margin-top: 20px;
+    text-transform: uppercase;
+}
+
+/* --- ESTILOS PARA LOS MENÚS (Cuadrícula 3x2) --- */
+.grid-menu {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 60px 40px;
+    max-width: 1100px;
+    width: 100%;
+}
+
+.opcion-menu {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.cuadro-foto-menu {
+    width: 250px;
+    height: 250px;
+    border: 1px solid #FF0000;
+    border-radius: 18px;
+    overflow: hidden;
+    background-color: #111;
+}
+
+.cuadro-foto-menu img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 18px;
+}
+
+.texto-menu {
+    color: #FF0000;
+    font-size: 1.1rem;
+    font-weight: bold;
+    margin-top: 15px;
+    text-transform: uppercase;
+    line-height: 1.3;
+}
+
+/* Botón Volver */
+.btn-volver {
+    margin-top: 50px;
+    color: #FF0000;
+    text-decoration: none;
+    border: 2px solid #FF0000;
+    padding: 10px 25px;
+    border-radius: 12px;
+    font-weight: bold;
+    text-transform: uppercase;
+    transition: 0.3s;
+}
+
+.btn-volver:hover {
+    background-color: #FF0000;
+    color: #000;
+}
+
+/* --- BARRA DE NAVEGACIÓN --- */
+.navbar {
+    width: 100%;
+    display: flex;
+    justify-content: flex-end; 
+    padding: 20px 50px;
+    position: absolute;
+    top: 0;
+    box-sizing: border-box;
+    background: transparent;
+}
+
+.auth-links {
+    display: flex;
+    align-items: center;
+    gap: 25px;
+}
+
+.auth-links a {
+    color: #FF0000;
+    text-decoration: none;
+    font-weight: bold;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    transition: 0.3s;
+}
+
+.cart-link i {
+    margin-right: 5px;
+}
+
+.my-order-link {
+    color: #FFD700 !important; /* Dorado para destacar */
+    margin-right: 15px;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.my-order-link i {
+    font-size: 1.1rem;
+}
+
+.btn-registro {
+    border: 1px solid #FF0000;
+    padding: 8px 18px;
+    border-radius: 4px;
+}
+
+.btn-registro:hover {
+    background-color: #FF0000;
+    color: #000 !important;
+}
+
+/* --- LOGICA DE VISIBILIDAD (Importante para Login) --- */
+#menu-invitado, #menu-usuario {
+    display: none; /* JS controlará cual mostrar */
+}
+
+.mostrar-flex {
+    display: flex !important;
+    align-items: center;
+    gap: 20px;
+}
+
+/* --- ESTILOS DEL MODAL --- */
+.modal {
+    display: none; 
+    position: fixed;
+    z-index: 1000;
+    left: 0; top: 0;
+    width: 100%; height: 100%;
+    background-color: rgba(0,0,0,0.25);
+    backdrop-filter: blur(6px);
+}
+
+.modal-content {
+    background: rgba(17, 17, 17, 0.78);
+    margin: 5% auto;
+    padding: 30px;
+    border: 1px solid rgba(255, 0, 0, 0.65);
+    width: 85%;
+    max-width: 500px;
+    color: white;
+    border-radius: 18px;
+    box-shadow: 0 18px 45px rgba(0, 0, 0, 0.65);
+    backdrop-filter: blur(10px);
+}
+
+.close-button {
+    color: #FF0000;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.campo-pedido {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 20px;
+    text-align: left;
+}
+
+.campo-pedido label {
+    font-weight: bold;
+    margin-bottom: 8px;
+    color: #FF0000;
+    font-size: 0.95rem;
+    text-transform: uppercase;
+}
+
+.campo-pedido select {
+    padding: 12px;
+    border-radius: 6px;
+    border: 1px solid #333;
+    background-color: #000;
+    color: white;
+    font-size: 1rem;
+    width: 100%;
+}
+
+.item-extra {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid #222;
+}
+
+.item-extra input[type="checkbox"] {
+    margin-right: 10px;
+    transform: scale(1.2);
+    accent-color: #FF0000;
+}
+
+.footer-modal {
+    margin-top: 20px;
+    text-align: center;
+    border-top: 1px solid #333;
+    padding-top: 20px;
+}
+
+.btn-rojo {
+    background-color: #FF0000;
+    color: black;
+    border: none;
+    padding: 12px 25px;
+    font-weight: bold;
+    cursor: pointer;
+    text-transform: uppercase;
+    width: 100%;
+    font-size: 1rem;
+}
+
+/* --- ESTILOS DE AUTENTICACIÓN --- */
+.contenedor-auth {
+    width: 100%;
+    max-width: 400px;
+    background: rgba(17, 17, 17, 0.78);
+    border: 1px solid rgba(255, 0, 0, 0.65);
+    padding: 40px;
+    border-radius: 18px;
+    box-sizing: border-box;
+    box-shadow: 0 18px 45px rgba(0, 0, 0, 0.65);
+    backdrop-filter: blur(10px);
+}
+
+.formulario {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.campo {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.campo label {
+    color: #FF0000;
+    font-weight: bold;
+    text-transform: uppercase;
+    font-size: 0.8rem;
+}
+
+.campo input {
+    background-color: #000;
+    border: 1px solid #333;
+    padding: 12px;
+    color: white;
+    border-radius: 4px;
+    outline: none;
+}
+
+.campo input:focus { border-color: #FF0000; }
+
+.btn-rojo-auth {
+    background-color: #FF0000;
+    color: black;
+    border: none;
+    padding: 15px;
+    font-weight: bold;
+    text-transform: uppercase;
+    cursor: pointer;
+    margin-top: 10px;
+}
+
+.error-text {
+    color: #FF0000;
+    font-size: 0.9rem;
+    text-align: center;
+    min-height: 20px;
+}
+
+.link-footer p {
+    color: #FF0000;
+    text-align: center;
+    margin: 10px 0 0 0;
+}
+
+.link-footer a {
+    color: #FFD700;
+    text-decoration: underline;
+}
+
+/* --- CARRITO --- */
+.contenedor-carrito {
+    width: 95%;
+    max-width: 700px;
+    background: rgba(17, 17, 17, 0.78);
+    border: 1px solid rgba(255, 0, 0, 0.65);
+    padding: 30px;
+    border-radius: 18px;
+    color: white;
+    box-shadow: 0 18px 45px rgba(0, 0, 0, 0.65);
+    backdrop-filter: blur(10px);
+}
+
+.item-carrito {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(255, 0, 0, 0.2);
+    border-radius: 14px;
+    padding: 14px 14px;
+    margin-bottom: 12px;
+    transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+}
+
+.item-carrito:hover {
+    transform: translateY(-1px);
+    border-color: rgba(255, 0, 0, 0.45);
+    background: rgba(0, 0, 0, 0.45);
+}
+
+.info-item {
+    flex-grow: 1;
+}
+
+.nombre-item {
+    display: block;
+    font-size: 1.25rem;
+    font-weight: bold;
+    color: #FF0000;
+    margin-bottom: 6px;
+}
+
+.precio-item {
+    font-weight: bold;
+    color: white;
+    font-size: 1.1rem;
+}
+
+.btn-eliminar {
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(255, 0, 0, 0.8);
+    color: #FF0000;
+    font-size: 1.4rem;
+    cursor: pointer;
+    width: 38px;
+    height: 38px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 20px;
+    transition: transform 0.15s ease, background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.btn-eliminar:hover {
+    background-color: #FF0000;
+    color: black;
+    border-color: rgba(255, 255, 255, 0.15);
+    transform: scale(1.05);
+}
+
+.botones-pago {
+    display: flex;
+    gap: 12px;
+    margin-top: 30px;
+}
+
+.btn-secundario {
+    flex: 1;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(255, 0, 0, 0.65);
+    color: white;
+    padding: 12px;
+    font-weight: bold;
+    cursor: pointer;
+    text-transform: uppercase;
+    border-radius: 12px;
+    transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+}
+
+.btn-secundario:hover {
+    background: rgba(255, 0, 0, 0.12);
+    border-color: rgba(255, 0, 0, 0.9);
+    transform: translateY(-1px);
+}
+
+.btn-pagar {
+    flex: 1;
+    background: linear-gradient(135deg, #ff0000 0%, #b30000 100%);
+    color: black;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    padding: 12px;
+    font-weight: bold;
+    cursor: pointer;
+    text-transform: uppercase;
+    border-radius: 12px;
+    box-shadow: 0 10px 22px rgba(255, 0, 0, 0.18);
+    transition: transform 0.18s ease, filter 0.18s ease;
+}
+
+.btn-pagar:hover {
+    transform: translateY(-1px);
+    filter: brightness(1.05);
+}
+
+.linea-total {
+    display: flex;
+    justify-content: space-between;
+    font-size: 1.6rem;
+    font-weight: bold;
+    color: #FF0000;
+    border: 1px solid rgba(255, 0, 0, 0.5);
+    background: rgba(0, 0, 0, 0.35);
+    border-radius: 14px;
+    padding: 14px 16px;
+    margin-top: 16px;
+}
+
+/* RESPONSIVE */
+@media (max-width: 1000px) {
+    .contenedor-principal { flex-direction: column; align-items: center; }
+    .grid-menu { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 600px) {
+    .grid-menu { grid-template-columns: 1fr; }
+    .navbar { padding: 15px; justify-content: center; }
+}

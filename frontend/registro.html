@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Registro - Pizzería</title>
+    <link rel="stylesheet" href="style.css"> 
+</head>
+<body class="bg-conchevino">
+
+    <header>
+        <h1>CREAR CUENTA</h1>
+    </header>
+
+    <main class="contenedor-auth">
+        <form id="form-registro" class="formulario">
+            <div class="campo">
+                <label>Nombre Completo</label>
+                <input type="text" id="nombre" placeholder="Ej: Juan Pérez" required>
+            </div>
+
+            <div class="campo">
+                <label>Teléfono</label>
+                <input type="text" id="telefono" placeholder="+569..." required>
+            </div>
+
+            <div class="campo">
+                <label>Correo Electrónico</label>
+                <input type="email" id="email" placeholder="tu@correo.com" required>
+            </div>
+
+            <div class="campo">
+                <label>Contraseña</label>
+                <input type="password" id="pass1" placeholder="Mínimo 6 caracteres" required>
+            </div>
+
+            <div class="campo">
+                <label>Repetir Contraseña</label>
+                <input type="password" id="pass2" placeholder="Repite tu clave" required>
+            </div>
+
+            <p id="mensaje-error" class="error-text"></p>
+
+            <button type="submit" class="btn-rojo-auth">Registrarse</button>
+            
+            <div class="link-footer">
+                <p>¿Ya tienes cuenta? <a href="login.html">Inicia sesión aquí</a></p>
+            </div>
+        </form>
+    </main>
+
+    <script src="config.js"></script>
+    <script>
+        const form = document.getElementById('form-registro');
+        const errorMsg = document.getElementById('mensaje-error');
+        // Guardamos el carrito antes de cambiar de página
+        const carritoAntesDeRegistro = localStorage.getItem('carrito');
+        let cartToken = localStorage.getItem('cart_token');
+        if (!cartToken) {
+            cartToken = `cart_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+            localStorage.setItem('cart_token', cartToken);
+        }
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const nombre = document.getElementById('nombre').value;
+            const telefono = document.getElementById('telefono').value;
+            const email = document.getElementById('email').value;
+            const pass1 = document.getElementById('pass1').value;
+            const pass2 = document.getElementById('pass2').value;
+
+            // Validación de coincidencia de contraseñas
+            if (pass1 !== pass2) {
+                errorMsg.style.color = "red";
+                errorMsg.innerText = "¡Las contraseñas no coinciden!";
+                return;
+            }
+
+            // Validación de longitud mínima (opcional pero recomendada)
+            if (pass1.length < 6) {
+                errorMsg.style.color = "red";
+                errorMsg.innerText = "La contraseña debe tener al menos 6 caracteres.";
+                return;
+            }
+
+            try {
+                const baseUrl = (window.APP_CONFIG && window.APP_CONFIG.API_BASE_URL) ? window.APP_CONFIG.API_BASE_URL : 'http://localhost:3000';
+                // Enviamos los datos al endpoint de registro
+                const respuesta = await fetch(`${baseUrl}/api/registro`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        nombre: nombre, 
+                        telefono: telefono, 
+                        email: email, 
+                        password: pass1 
+                    })
+                });
+
+                const datos = await respuesta.json();
+
+                if (respuesta.ok) {
+                    errorMsg.style.color = "#00FF00";
+                    errorMsg.innerText = "¡Cuenta creada con éxito!";
+                    
+                    // IMPORTANTE: No guardamos el nombre en localStorage todavía, 
+                    // lo ideal es hacerlo después del Login para mayor seguridad.
+                    // Asegurar que el carrito no se pierda al pasar al login
+                    if (carritoAntesDeRegistro) {
+                        localStorage.setItem('carrito', carritoAntesDeRegistro);
+                    }
+                    try {
+                        const carritoLocal = JSON.parse(localStorage.getItem('carrito') || '[]');
+                        await fetch(`${baseUrl}/api/carrito/guardar`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ cartToken, carrito: carritoLocal })
+                        });
+                    } catch (e) {
+                    }
+
+                    // Redirigimos al login después de un breve delay
+                    setTimeout(() => { 
+                        window.location.href = 'login.html'; 
+                    }, 1500);
+                } else {
+                    errorMsg.style.color = "red";
+                    // Si el email ya existe en Postgres, el backend debería enviar este error
+                    errorMsg.innerText = datos.error || datos.message || "Error al registrar";
+                }
+            } catch (error) {
+                errorMsg.style.color = "red";
+                errorMsg.innerText = "No se pudo conectar con el servidor. Verifica que tu API en Node.js esté corriendo.";
+                console.error("Error en el registro:", error);
+            }
+        });
+    </script>
+</body>
+</html>

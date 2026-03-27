@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Tu Carrito - Pizzería</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body class="bg-conchevino">
+
+    <nav class="navbar">
+        <div class="auth-links" id="navbar-auth"></div>
+    </nav>
+
+    <header>
+        <h1>RESUMEN DE TU PEDIDO</h1>
+    </header>
+
+    <main class="contenedor-carrito">
+        <div id="lista-productos">
+            </div>
+
+        <div class="resumen-total">
+            <div class="linea-total">
+                <span>TOTAL A PAGAR:</span>
+                <span id="suma-total">$0</span>
+            </div>
+            
+            <div class="botones-pago">
+                <button onclick="volverASucursal()" class="btn-secundario">Seguir Comprando</button>
+                <button onclick="mostrarModalDemora()" class="btn-pagar">Pagar con Webpay</button>
+            </div>
+            
+            <div style="margin-top: 20px; text-align: center; color: #FF0000; font-size: 0.9rem; font-weight: bold;">
+                Estimado cliente, para pagar con efectivo su pedido deberá hacerlo presencialmente en el local
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal de Demora -->
+    <div id="modal-demora" class="modal">
+        <div class="modal-content" style="text-align: center; max-width: 400px;">
+            <h2 style="color: #FF0000; margin-top: 0;">TIEMPO ESTIMADO</h2>
+            <p id="texto-demora" style="font-size: 1.2rem; margin: 20px 0;">Cargando tiempo...</p>
+            
+            <div class="botones-pago" style="margin-top: 20px;">
+                <button onclick="cerrarModalDemora()" class="btn-secundario">Cancelar</button>
+                <button onclick="pagarConTransbank()" class="btn-pagar">Continuar a Pago</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="config.js"></script>
+    <script src="pago.js"></script>
+    <script>
+        function cargarCarrito() {
+            const carrito = JSON.parse(localStorage.getItem('carrito')) || [];
+            const contenedor = document.getElementById('lista-productos');
+            const totalElemento = document.getElementById('suma-total');
+            let total = 0;
+
+            if (carrito.length === 0) {
+                contenedor.innerHTML = "<p class='texto-rojo'>Tu carrito está vacío.</p>";
+                totalElemento.innerText = "$0"; // Aseguramos que el total sea 0
+                return;
+            }
+
+            contenedor.innerHTML = "";
+            carrito.forEach((item, index) => {
+                const precio = typeof item.precio === 'number' ? item.precio : parseInt(item.precio.replace(/[^0-9]/g, '')) || 0;
+                total += precio;
+                contenedor.innerHTML += `
+                    <div class="item-carrito">
+                        <div class="info-item">
+                            <span class="nombre-item">${item.nombre}</span>
+                            <span class="detalles-item" style="display: block; font-size: 0.8rem; color: #aaa; margin-bottom: 5px;">${item.detalles || ''}</span>
+                            <span class="precio-item">$${precio.toLocaleString()}</span>
+                        </div>
+                        <button onclick="eliminarDelCarrito(${index})" class="btn-eliminar">&times;</button>
+                    </div>
+                `;
+            });
+
+            totalElemento.innerText = `$${total.toLocaleString()}`;
+        }
+
+        function eliminarDelCarrito(index) {
+            let carrito = JSON.parse(localStorage.getItem('carrito')) || [];
+            carrito.splice(index, 1);
+            localStorage.setItem('carrito', JSON.stringify(carrito));
+            cargarCarrito();
+            if (typeof actualizarNavbar === 'function') {
+                actualizarNavbar();
+            }
+        }
+
+        async function mostrarModalDemora() {
+            const nombreUsuario = localStorage.getItem('usuario_nombre');
+            const carrito = JSON.parse(localStorage.getItem('carrito')) || [];
+
+            if (!nombreUsuario) {
+                if (typeof guardarCarritoTemporal === 'function') {
+                    const token = typeof asegurarCartToken === 'function' ? asegurarCartToken() : localStorage.getItem('cart_token');
+                    guardarCarritoTemporal(token, carrito);
+                }
+                sessionStorage.setItem('post_login_redirect', 'carrito.html');
+                window.location.href = 'login.html';
+                return;
+            }
+
+            if (carrito.length === 0) {
+                return;
+            }
+
+            const sucursales = new Set(
+                carrito.map(it => (it.sucursal || '').toString().trim()).filter(Boolean)
+            );
+            if (sucursales.size > 1) {
+                return;
+            }
+
+            const sucursal = sucursales.size === 1
+                ? Array.from(sucursales)[0]
+                : (localStorage.getItem('ultima_sucursal')?.includes('coquimbo') ? 'Coquimbo' : 'La Serena');
+
+            // Abrir el modal inmediatamente
+            document.getElementById('modal-demora').style.display = 'block';
+            const textoDemora = document.getElementById('texto-demora');
+            textoDemora.innerText = `Consultando tiempo de demora en ${sucursal}...`;
+
+            try {
+                // Consultar a la base de datos el tiempo configurado para esa sucursal
+                const baseUrl = (window.APP_CONFIG && window.APP_CONFIG.API_BASE_URL) ? window.APP_CONFIG.API_BASE_URL : 'http://localhost:3000';
+                const response = await fetch(`${baseUrl}/api/config/${sucursal}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    textoDemora.innerHTML = `El tiempo estimado de preparación en <strong>${sucursal}</strong> es de:<br><br><span style="font-size: 2rem; color: #FFD700; font-weight: bold;">${data.demora_actual} minutos</span>`;
+                } else {
+                    textoDemora.innerText = `El tiempo estimado de preparación en ${sucursal} es de aproximadamente 30 minutos.`;
+                }
+            } catch (error) {
+                textoDemora.innerText = `El tiempo estimado de preparación en ${sucursal} es de aproximadamente 30 minutos.`;
+            }
+        }
+
+        function cerrarModalDemora() {
+            document.getElementById('modal-demora').style.display = 'none';
+        }
+
+        async function pagarConTransbank() {
+            // Cerramos el modal
+            cerrarModalDemora();
+            const nombreUsuario = localStorage.getItem('usuario_nombre');
+            const telefonoUsuario = localStorage.getItem('usuario_telefono') || '';
+            const carrito = JSON.parse(localStorage.getItem('carrito')) || [];
+
+            if (!nombreUsuario) {
+                if (typeof guardarCarritoTemporal === 'function') {
+                    const token = typeof asegurarCartToken === 'function' ? asegurarCartToken() : localStorage.getItem('cart_token');
+                    guardarCarritoTemporal(token, carrito);
+                }
+                sessionStorage.setItem('post_login_redirect', 'carrito.html');
+                window.location.href = 'login.html';
+                return;
+            }
+
+            if (carrito.length === 0) {
+                return;
+            }
+
+            const sucursales = new Set(
+                carrito.map(it => (it.sucursal || '').toString().trim()).filter(Boolean)
+            );
+            if (sucursales.size > 1) {
+                return;
+            }
+
+            const sucursal = sucursales.size === 1
+                ? Array.from(sucursales)[0]
+                : (localStorage.getItem('ultima_sucursal')?.includes('coquimbo') ? 'coquimbo' : 'la_serena');
+
+            await pagarCarritoConWebpay(sucursal, nombreUsuario, telefonoUsuario);
+        }
+
+        function volverASucursal() {
+            const ultimaPagina = localStorage.getItem('ultima_sucursal');
+            if (ultimaPagina) {
+                window.location.href = ultimaPagina;
+            } else {
+                window.location.href = 'index.html';
+            }
+        }
+
+        cargarCarrito();
+    </script>
+    <script src="auth-navbar.js"></script>
+</body>
+</html>

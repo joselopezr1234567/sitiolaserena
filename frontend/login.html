@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Iniciar Sesión - Pizzería</title>
+    <link rel="stylesheet" href="style.css"> 
+</head>
+<body class="bg-conchevino">
+
+    <header>
+        <h1>INICIAR SESIÓN</h1>
+    </header>
+
+    <main class="contenedor-auth">
+        <form id="form-login" class="formulario">
+            
+            <div class="campo">
+                <label>Correo Electrónico</label>
+                <input type="email" id="login-email" placeholder="tu@correo.com" required>
+            </div>
+
+            <div class="campo">
+                <label>Contraseña</label>
+                <input type="password" id="login-pass" placeholder="Tu contraseña" required>
+            </div>
+
+            <p id="mensaje-error" class="error-text"></p>
+
+            <button type="submit" class="btn-rojo-auth">Entrar</button>
+            
+            <div class="link-footer">
+                <p>¿No tienes cuenta? <a href="registro.html">Regístrate aquí</a></p>
+            </div>
+        </form>
+    </main>
+
+    <script src="config.js"></script>
+    <script>
+        const form = document.getElementById('form-login');
+        const errorMsg = document.getElementById('mensaje-error');
+        const carritoAntesDeLogin = localStorage.getItem('carrito');
+        let cartToken = localStorage.getItem('cart_token');
+        if (!cartToken) {
+            cartToken = `cart_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+            localStorage.setItem('cart_token', cartToken);
+        }
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-pass').value;
+
+            try {
+                const baseUrl = (window.APP_CONFIG && window.APP_CONFIG.API_BASE_URL) ? window.APP_CONFIG.API_BASE_URL : 'http://localhost:3000';
+                try {
+                    const carritoLocal = JSON.parse(localStorage.getItem('carrito') || '[]');
+                    await fetch(`${baseUrl}/api/carrito/guardar`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ cartToken, carrito: carritoLocal })
+                    });
+                } catch (e) {
+                }
+
+                // Enviamos credenciales al servidor Node.js/Postgres
+                const respuesta = await fetch(`${baseUrl}/api/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password, cartToken })
+                });
+
+                const datos = await respuesta.json();
+
+                if (respuesta.ok) {
+                    // El servidor validó los datos en la DB
+                    errorMsg.style.color = "#00FF00";
+                    
+                    // Extraemos los datos que vienen directamente de tu tabla 'usuarios'
+                    const nombreUsuario = datos.usuario ? datos.usuario.nombre : datos.nombre;
+                    const telefonoUsuario = datos.usuario ? datos.usuario.telefono : ''; // Obtenemos el teléfono
+                    const token = datos.token || (datos.usuario ? datos.usuario.id : null); 
+
+                    errorMsg.innerText = "¡Bienvenido de nuevo, " + nombreUsuario + "!";
+                    
+                    // Guardamos el nombre, teléfono y el token para que el Index los use
+                    localStorage.setItem('usuario_nombre', nombreUsuario);
+                    localStorage.setItem('usuario_telefono', telefonoUsuario);
+                    localStorage.setItem('auth_token', token); 
+
+                    const carritoPrevio = (() => {
+                        try { return JSON.parse(carritoAntesDeLogin || '[]'); } catch { return []; }
+                    })();
+                    if (Array.isArray(carritoPrevio) && carritoPrevio.length > 0) {
+                        localStorage.setItem('carrito', JSON.stringify(carritoPrevio));
+                    } else if (Array.isArray(datos.carrito) && datos.carrito.length > 0) {
+                        localStorage.setItem('carrito', JSON.stringify(datos.carrito));
+                    }
+                    
+                    setTimeout(() => {
+                        const redirect = sessionStorage.getItem('post_login_redirect');
+                        if (redirect) {
+                            sessionStorage.removeItem('post_login_redirect');
+                            window.location.href = redirect;
+                            return;
+                        }
+                        window.location.href = 'index.html';
+                    }, 1000);
+                } else {
+                    errorMsg.style.color = "red";
+                    errorMsg.innerText = datos.error || "Correo o contraseña incorrectos";
+                }
+
+            } catch (error) {
+                console.error("Error en el login:", error);
+                errorMsg.style.color = "red";
+                errorMsg.innerText = "No se pudo conectar con el servidor. ¿Está encendido?";
+            }
+        });
+    </script>
+</body>
+</html>

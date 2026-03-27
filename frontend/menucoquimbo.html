@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Menú - Coquimbo</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        /* Estilos para el orden vertical del modal */
+        .campo-pedido {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 15px;
+            text-align: left;
+        }
+        .campo-pedido label {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #333;
+        }
+        .campo-pedido select {
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            width: 100%;
+        }
+        .item-extra {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .desc-pizzas {
+            font-size: 0.8rem;
+            color: #666;
+            font-style: italic;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body class="bg-conchevino">
+
+    <nav class="navbar">
+        <div class="auth-links" id="navbar-auth"></div>
+    </nav>
+
+    <header>
+        <h1>MENÚ COQUIMBO</h1>
+    </header>
+
+    <main class="grid-menu">
+        <div class="opcion-menu" onclick="prepararPedido('combo2')">
+            <div class="cuadro-foto-menu"><img src="combofamiliarcoquimbo.png"></div>
+            <p class="texto-menu">2 Pizzas Familiares <br> + Bebida 2 Lts</p>
+        </div>
+
+        <div class="opcion-menu" onclick="prepararPedido('pizzas-familiares')">
+            <div class="cuadro-foto-menu"><img src="PizzasFamiliares.png"></div>
+            <p class="texto-menu">Pizzas Familiares</p>
+        </div>
+
+        <div class="opcion-menu" onclick="prepararPedido('mitades')">
+            <div class="cuadro-foto-menu"><img src="mitades.png"></div>
+            <p class="texto-menu">Pizza por Mitades</p>
+        </div>
+
+        <div class="opcion-menu" onclick="prepararPedido('al-gusto')">
+            <div class="cuadro-foto-menu"><img src="AlGusto.png"></div>
+            <p class="texto-menu">Pizzas al Gusto</p>
+        </div>
+
+        <div class="opcion-menu" onclick="prepararPedido('bebidas')">
+            <div class="cuadro-foto-menu"><img src="Bebidas.png"></div>
+            <p class="texto-menu">Bebidas</p>
+        </div>
+
+        <div class="opcion-menu" onclick="prepararPedido('acompañamientos')">
+            <div class="cuadro-foto-menu"><img src="Acompañamientos.png"></div>
+            <p class="texto-menu">Acompañamientos</p>
+        </div>
+    </main>
+
+    <div class="footer-btns">
+        <a href="menulaserena.html" class="btn-volver">← Ir a La Serena</a>
+    </div>
+
+    <div id="modal-pedido" class="modal">
+        <div class="modal-content">
+            <span class="close-button" onclick="cerrarModal()">&times;</span>
+            <h2 id="modal-titulo">Configura tu pedido</h2>
+            <hr>
+            <form id="form-pedido">
+                <div id="opciones-dinamicas"></div>
+                <div class="footer-modal">
+                    <p>Total: <span id="precio-total">$0</span></p>
+                    <button type="button" id="add-to-cart" class="btn-rojo">Agregar al Carrito</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="config.js"></script>
+    <script>
+        let productosDB = [];
+
+        async function cargarDatosBase() {
+            try {
+                // Filtramos por la sucursal de Coquimbo
+                const baseUrl = (window.APP_CONFIG && window.APP_CONFIG.API_BASE_URL) ? window.APP_CONFIG.API_BASE_URL : 'http://localhost:3000';
+                const res = await fetch(`${baseUrl}/api/productos/coquimbo`);
+                productosDB = await res.json();
+                actualizarNavbar();
+            } catch (e) {
+                console.error("Error conectando al servidor:", e);
+            }
+        }
+
+        function prepararPedido(tipo) {
+            const modal = document.getElementById('modal-pedido');
+            const titulo = document.getElementById('modal-titulo');
+            const opciones = document.getElementById('opciones-dinamicas');
+            const precioTotal = document.getElementById('precio-total');
+            
+            opciones.innerHTML = "";
+            modal.style.display = "block";
+
+            const pizzas = productosDB.filter(p => p.categoria === 'pizzas');
+            const bebidas = productosDB.filter(p => p.categoria === 'bebidas');
+            const ingredientes = productosDB.filter(p => p.categoria === 'ingredientes');
+
+            if (tipo === 'combo2') {
+                titulo.innerText = "Combo: 2 Familiares + Bebida";
+                const promoProd = productosDB.find(p => p.categoria === 'promociones') || { precio: 15000 };
+                precioTotal.innerText = `$${promoProd.precio.toLocaleString()}`;
+                
+                opciones.innerHTML = `
+                    <div class="campo-pedido">
+                        <label>Selecciona Pizza 1:</label>
+                        <select id="sel1" onchange="actualizarDescCombo()">${pizzas.map(p => `<option data-desc="${p.descripcion || ''}">${p.nombre}</option>`).join('')}</select>
+                        <div id="desc-sel1" class="desc-pizzas"></div>
+                    </div>
+                    <div class="campo-pedido">
+                        <label>Selecciona Pizza 2:</label>
+                        <select id="sel2" onchange="actualizarDescCombo()">${pizzas.map(p => `<option data-desc="${p.descripcion || ''}">${p.nombre}</option>`).join('')}</select>
+                        <div id="desc-sel2" class="desc-pizzas"></div>
+                    </div>
+                    <div class="campo-pedido">
+                        <label>Selecciona Bebida:</label>
+                        <select id="sel3">${bebidas.filter(b => b.nombre.includes('2L') || b.nombre.includes('2 LITROS')).map(b => `<option>${b.nombre}</option>`).join('')}</select>
+                    </div>
+                `;
+                setTimeout(actualizarDescCombo, 10);
+            } 
+            else if (tipo === 'mitades') {
+                titulo.innerText = "Pizza por Mitades";
+                opciones.innerHTML = `
+                    <div class="campo-pedido">
+                        <label>Primera Mitad:</label>
+                        <select id="m1" onchange="calcMitades()">${pizzas.map(p => `<option value="${p.precio/2}" data-desc="${p.descripcion || ''}">${p.nombre} (+$${(p.precio/2).toLocaleString()})</option>`).join('')}</select>
+                        <div id="desc-m1" class="desc-pizzas"></div>
+                    </div>
+                    <div class="campo-pedido">
+                        <label>Segunda Mitad:</label>
+                        <select id="m2" onchange="calcMitades()">${pizzas.map(p => `<option value="${p.precio/2}" data-desc="${p.descripcion || ''}">${p.nombre} (+$${(p.precio/2).toLocaleString()})</option>`).join('')}</select>
+                        <div id="desc-m2" class="desc-pizzas"></div>
+                    </div>
+                `;
+                setTimeout(calcMitades, 10);
+            }
+            else if (tipo === 'al-gusto') {
+                titulo.innerText = "Familiar al Gusto";
+                const baseProd = productosDB.find(p => p.nombre === 'Base Pizza') || { precio: 7000 };
+                precioTotal.innerText = `$${baseProd.precio.toLocaleString()}`;
+                
+                opciones.innerHTML = `<p style="margin-bottom:10px; color:gray;">Base Salsa y Queso ($${baseProd.precio})</p>`;
+                ingredientes.forEach(i => {
+                    opciones.innerHTML += `
+                        <div class="item-extra">
+                            <label><input type="checkbox" class="extra-check" value="${i.precio}" data-name="${i.nombre}"> ${i.nombre}</label>
+                            <span>+$${i.precio}</span>
+                        </div>
+                    `;
+                });
+                opciones.querySelectorAll('input').forEach(i => i.onchange = () => calcAlGusto(baseProd.precio));
+            }
+            else {
+                const cat = tipo === 'pizzas-familiares' ? 'pizzas' : tipo;
+                const filtrados = productosDB.filter(p => p.categoria === cat);
+                titulo.innerText = tipo.replace('-', ' ').toUpperCase();
+                opciones.innerHTML = `
+                    <div class="campo-pedido">
+                        <label>Elige una opción:</label>
+                        <select id="sel-simple" onchange="actualizarPrecioSimple(this)">
+                            ${filtrados.map(f => `<option value="${f.precio}" data-desc="${f.descripcion || ''}">${f.nombre} ($${f.precio.toLocaleString()})</option>`).join('')}
+                        </select>
+                    </div>
+                    <div id="descripcion-producto" style="margin-top: 10px; font-size: 0.9rem; color: #666; font-style: italic;">
+                        ${filtrados[0]?.descripcion ? 'Ingredientes: ' + filtrados[0].descripcion : ''}
+                    </div>
+                `;
+                precioTotal.innerText = `$${filtrados[0]?.precio.toLocaleString() || 0}`;
+            }
+
+            document.getElementById('add-to-cart').onclick = () => {
+                const selects = Array.from(document.querySelectorAll('select')).map(s => s.options[s.selectedIndex]?.text || "");
+                const checks = Array.from(document.querySelectorAll('input:checked')).map(c => c.getAttribute('data-name'));
+                
+                // Si es una pizza simple, añadimos la descripción (ingredientes) a los detalles
+                let detallesExtra = "";
+                const selSimple = document.getElementById('sel-simple');
+                if (selSimple && selSimple.options[selSimple.selectedIndex]?.getAttribute('data-desc')) {
+                    detallesExtra = "Ingredientes: " + selSimple.options[selSimple.selectedIndex].getAttribute('data-desc');
+                }
+
+                const pedido = {
+                    id: Date.now(),
+                    sucursal: 'Coquimbo',
+                    nombre: titulo.innerText,
+                    precio: parseInt(precioTotal.innerText.replace(/[^0-9]/g, '')), // Guardamos como número puro
+                    detalles: [...selects, ...checks, detallesExtra].filter(d => d !== "").join(' | ')
+                };
+                let carrito = JSON.parse(localStorage.getItem('carrito')) || [];
+                carrito.push(pedido);
+                localStorage.setItem('carrito', JSON.stringify(carrito));
+                cerrarModal();
+                actualizarNavbar();
+            };
+        }
+
+        function actualizarPrecioSimple(select) {
+            document.getElementById('precio-total').innerText = '$' + parseInt(select.value).toLocaleString();
+            const desc = select.options[select.selectedIndex].getAttribute('data-desc');
+            const descDiv = document.getElementById('descripcion-producto');
+            if (descDiv) {
+                descDiv.innerText = desc ? 'Ingredientes: ' + desc : '';
+            }
+        }
+
+        function calcMitades() {
+            const s1 = document.getElementById('m1');
+            const s2 = document.getElementById('m2');
+            const m1 = parseInt(s1.value) || 0;
+            const m2 = parseInt(s2.value) || 0;
+            document.getElementById('precio-total').innerText = "$" + (m1 + m2).toLocaleString();
+            
+            // Actualizar descripciones
+            const d1 = s1.options[s1.selectedIndex].getAttribute('data-desc');
+            const d2 = s2.options[s2.selectedIndex].getAttribute('data-desc');
+            document.getElementById('desc-m1').innerText = d1 ? 'Ingredientes: ' + d1 : '';
+            document.getElementById('desc-m2').innerText = d2 ? 'Ingredientes: ' + d2 : '';
+        }
+
+        function actualizarDescCombo() {
+            const s1 = document.getElementById('sel1');
+            const s2 = document.getElementById('sel2');
+            if (s1) {
+                const d1 = s1.options[s1.selectedIndex].getAttribute('data-desc');
+                document.getElementById('desc-sel1').innerText = d1 ? 'Ingredientes: ' + d1 : '';
+            }
+            if (s2) {
+                const d2 = s2.options[s2.selectedIndex].getAttribute('data-desc');
+                document.getElementById('desc-sel2').innerText = d2 ? 'Ingredientes: ' + d2 : '';
+            }
+        }
+
+        function calcAlGusto(base) {
+            let t = base;
+            document.querySelectorAll('.extra-check:checked').forEach(c => t += parseInt(c.value));
+            document.getElementById('precio-total').innerText = "$" + t.toLocaleString();
+        }
+
+        function cerrarModal() { document.getElementById('modal-pedido').style.display = "none"; }
+        
+        localStorage.setItem('ultima_sucursal', window.location.pathname);
+        window.onload = cargarDatosBase;
+    </script>
+    <script src="auth-navbar.js"></script>
+</body>
+</html>

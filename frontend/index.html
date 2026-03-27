@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Selección de Ciudad - Pizzería</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body class="bg-conchevino">
+
+    <nav class="navbar">
+        <div class="auth-links" id="navbar-auth"></div>
+    </nav>
+
+    <header>
+        <h1>ELIGE UNA SUCURSAL</h1>
+    </header>
+
+    <main class="contenedor-principal">
+        <a href="menulaserena.html" class="tarjeta-index" onclick="localStorage.setItem('ultima_sucursal','menulaserena.html')">
+            <div class="foto-index">
+                <img src="PortadaLaSerena.png" alt="La Serena">
+            </div>
+            <p class="texto-rojo">La Serena</p>
+        </a>
+        <a href="menucoquimbo.html" class="tarjeta-index" onclick="localStorage.setItem('ultima_sucursal','menucoquimbo.html')">
+            <div class="foto-index">
+                <img src="PortadaCoquimbo.png" alt="Coquimbo">
+            </div>
+            <p class="texto-rojo">Coquimbo</p>
+        </a>
+    </main>
+
+    <script src="auth-navbar.js"></script>
+</body>
+</html>
