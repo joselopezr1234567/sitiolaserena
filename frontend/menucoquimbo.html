@@ -105,12 +105,20 @@
     <script>
         let productosDB = [];
 
+        function normalizarCategoria(s) {
+            return (s || "").trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        }
+
         async function cargarDatosBase() {
             try {
                 // Filtramos por la sucursal de Coquimbo
                 const baseUrl = (window.APP_CONFIG && window.APP_CONFIG.API_BASE_URL) ? window.APP_CONFIG.API_BASE_URL : 'http://localhost:3000';
                 const res = await fetch(`${baseUrl}/api/productos/coquimbo`);
-                productosDB = await res.json();
+                const data = await res.json();
+                productosDB = data.map(p => ({
+                    ...p,
+                    categoria: normalizarCategoria(p.categoria)
+                }));
                 actualizarNavbar();
             } catch (e) {
                 console.error("Error conectando al servidor:", e);
@@ -186,14 +194,15 @@
                 opciones.querySelectorAll('input').forEach(i => i.onchange = () => calcAlGusto(baseProd.precio));
             }
             else {
-                const cat = tipo === 'pizzas-familiares' ? 'pizzas' : tipo;
+                const tipoNorm = normalizarCategoria(tipo);
+                const cat = tipoNorm === 'pizzas-familiares' ? 'pizzas' : tipoNorm;
                 const filtrados = productosDB.filter(p => p.categoria === cat);
                 titulo.innerText = tipo.replace('-', ' ').toUpperCase();
                 opciones.innerHTML = `
                     <div class="campo-pedido">
                         <label>Elige una opción:</label>
                         <select id="sel-simple" onchange="actualizarPrecioSimple(this)">
-                            ${filtrados.map(f => `<option value="${f.precio}" data-desc="${f.descripcion || ''}">${f.nombre} ($${f.precio.toLocaleString()})</option>`).join('')}
+                            ${filtrados.length > 0 ? filtrados.map(f => `<option value="${f.precio}" data-desc="${f.descripcion || ''}">${f.nombre} ($${f.precio.toLocaleString()})</option>`).join('') : `<option value="">Sin opciones disponibles</option>`}
                         </select>
                     </div>
                     <div id="descripcion-producto" style="margin-top: 10px; font-size: 0.9rem; color: #666; font-style: italic;">
