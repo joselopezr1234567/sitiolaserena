@@ -86,7 +86,7 @@ class CobroPizezzeriaApp:
             header,
             text="COBRO PIZZERÍA (VENTAS Y COBRO 10% + IVA POR MES)",
             font=("Arial", 16, "bold"),
-            fg="#FFD700",
+            fg="#ffffff",
             bg="#222",
         ).pack(side=tk.LEFT, padx=10, pady=10)
 

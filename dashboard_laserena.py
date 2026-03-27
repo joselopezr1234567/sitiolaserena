@@ -64,7 +64,7 @@ class DashboardPizzeria:
         config_frame = tk.Frame(root, bg="#222", bd=2, relief=tk.RAISED)
         config_frame.pack(fill=tk.X, padx=20, pady=10)
         
-        tk.Label(config_frame, text="TIEMPO DE DEMORA (MINUTOS):", font=("Arial", 12, "bold"), fg="#FFD700", bg="#222").pack(side=tk.LEFT, padx=10, pady=10)
+        tk.Label(config_frame, text="TIEMPO DE DEMORA (MINUTOS):", font=("Arial", 12, "bold"), fg="#ffffff", bg="#222").pack(side=tk.LEFT, padx=10, pady=10)
         
         self.demora_var = tk.StringVar(value="30")
         self.entry_demora = tk.Entry(config_frame, textvariable=self.demora_var, font=("Arial", 12), width=5, justify='center')
@@ -94,7 +94,7 @@ class DashboardPizzeria:
         center_btns.pack(side=tk.LEFT, expand=True)
 
         self.btn_listo = tk.Button(center_btns, text="PEDIDO LISTO", command=self.pedido_listo, 
-                                   bg="#FFD700", fg="black", font=("Arial", 12, "bold"), width=30)
+                                   bg="#ffffff", fg="black", font=("Arial", 12, "bold"), width=30)
         self.btn_listo.pack()
 
         # Contenedor para botones de la derecha (Productos)
@@ -261,7 +261,7 @@ class DashboardPizzeria:
         prod_win.geometry("600x500")
         prod_win.configure(bg="#111")
         
-        tk.Label(prod_win, text="ESTADO DE PRODUCTOS", font=("Arial", 16, "bold"), bg="#111", fg="#FFD700").pack(pady=15)
+        tk.Label(prod_win, text="ESTADO DE PRODUCTOS", font=("Arial", 16, "bold"), bg="#111", fg="#ffffff").pack(pady=15)
         
         # Frame para la lista con scroll
         list_frame = tk.Frame(prod_win, bg="#111")
@@ -353,7 +353,7 @@ class DashboardPizzeria:
         header = tk.Frame(win, bg="#222")
         header.pack(fill=tk.X, padx=15, pady=15)
 
-        lbl_titulo = tk.Label(header, text=f"CIERRE DE CAJA - {SUCURSAL.upper()} (HOY)", font=("Arial", 16, "bold"), fg="#FFD700", bg="#222")
+        lbl_titulo = tk.Label(header, text=f"CIERRE DE CAJA - {SUCURSAL.upper()} (HOY)", font=("Arial", 16, "bold"), fg="#ffffff", bg="#222")
         lbl_titulo.pack(side=tk.LEFT, padx=10, pady=10)
 
         total_var = tk.StringVar(value="TOTAL: $0")

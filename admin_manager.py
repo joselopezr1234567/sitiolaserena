@@ -73,7 +73,7 @@ class AdminManager:
         menu_frame = tk.Frame(self.root, bg="#1a1a1a")
         menu_frame.pack(expand=True)
 
-        tk.Label(menu_frame, text="¿Qué local quieres ver?", font=("Arial", 20, "bold"), fg="#FFD700", bg="#1a1a1a").pack(pady=30)
+        tk.Label(menu_frame, text="¿Qué local quieres ver?", font=("Arial", 20, "bold"), fg="#ffffff", bg="#1a1a1a").pack(pady=30)
 
         btn_style = {"font": ("Arial", 16, "bold"), "width": 30, "height": 3, "cursor": "hand2", "fg": "black"}
 
@@ -98,7 +98,7 @@ class AdminManager:
         content.pack(fill=tk.BOTH, expand=True, padx=50, pady=20)
 
         # 1. Paso: Elegir Categoría
-        tk.Label(content, text="PASO 1: Elige qué quieres gestionar", font=("Arial", 14, "bold"), fg="#FFD700", bg="#1a1a1a").pack(pady=10)
+        tk.Label(content, text="PASO 1: Elige qué quieres gestionar", font=("Arial", 14, "bold"), fg="#ffffff", bg="#1a1a1a").pack(pady=10)
         
         cat_frame = tk.Frame(content, bg="#1a1a1a")
         cat_frame.pack(fill=tk.X)
@@ -110,7 +110,7 @@ class AdminManager:
         self.cb_filtro_cat.bind("<<ComboboxSelected>>", lambda e: self.refrescar_lista_combo())
 
         # 2. Paso: Elegir Producto de esa categoría
-        tk.Label(content, text="PASO 2: Elige el producto o pulsa 'NUEVO'", font=("Arial", 14, "bold"), fg="#FFD700", bg="#1a1a1a").pack(pady=10)
+        tk.Label(content, text="PASO 2: Elige el producto o pulsa 'NUEVO'", font=("Arial", 14, "bold"), fg="#ffffff", bg="#1a1a1a").pack(pady=10)
         
         sel_frame = tk.Frame(content, bg="#1a1a1a")
         sel_frame.pack(fill=tk.X)
