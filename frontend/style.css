@@ -530,5 +530,39 @@ h1 {
 
 @media (max-width: 600px) {
     .grid-menu { grid-template-columns: 1fr; }
-    .navbar { padding: 15px; justify-content: center; }
+    body {
+        padding: 20px 12px;
+        background-attachment: scroll;
+    }
+    h1 {
+        letter-spacing: 2px;
+        margin-bottom: 30px;
+    }
+    .navbar {
+        position: relative;
+        padding: 10px 12px;
+        justify-content: center;
+    }
+    .auth-links {
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 12px;
+    }
+    .foto-index {
+        width: 92vw;
+        max-width: 450px;
+        height: 220px;
+    }
+    .cuadro-foto-menu {
+        width: 80vw;
+        height: 80vw;
+        max-width: 280px;
+        max-height: 280px;
+    }
+    .botones-pago {
+        flex-direction: column;
+    }
+    .btn-eliminar {
+        margin-left: 10px;
+    }
 }
