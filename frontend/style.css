@@ -67,6 +67,12 @@ h1 {
     font-family: "ITC Motter Corpus", "Rozha One", Arial, sans-serif;
 }
 
+.page-menu h1,
+.page-menu .texto-menu {
+    color: #ffffff;
+    font-family: "ITC Motter Corpus", "Rozha One", Arial, sans-serif;
+}
+
 /* --- ESTILOS PARA INDEX.HTML (Inicio) --- */
 .contenedor-principal {
     display: flex;
