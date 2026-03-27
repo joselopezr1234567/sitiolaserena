@@ -90,6 +90,12 @@ async function initCarritosTemporales() {
 
 initCarritosTemporales().catch((e) => console.error('Error inicializando carritos_temporales:', e.message));
 
+async function initProductosSchema() {
+    await pool.query(`ALTER TABLE productos ADD COLUMN IF NOT EXISTS combo2_disponible BOOLEAN NOT NULL DEFAULT TRUE`);
+}
+
+initProductosSchema().catch((e) => console.error('Error inicializando schema de productos:', e.message));
+
 // --- RUTAS DE PRODUCTOS (MENÚS) ---
 
 // 1. Obtener productos por sucursal (Para menulaserena.html y menucoquimbo.html)
@@ -456,11 +462,12 @@ app.delete('/api/admin/usuarios/:id', async (req, res) => {
 
 // 12. CRUD de Productos
 app.post('/api/admin/productos', async (req, res) => {
-    const { nombre, precio, categoria, sucursal, descripcion, disponible } = req.body;
+    const { nombre, precio, categoria, sucursal, descripcion, disponible, combo2_disponible } = req.body;
     try {
+        const combo2Value = combo2_disponible === undefined ? null : combo2_disponible;
         const nuevo = await pool.query(
-            "INSERT INTO productos (nombre, precio, categoria, sucursal, descripcion, disponible) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *",
-            [nombre, precio, categoria, sucursal, descripcion, disponible]
+            "INSERT INTO productos (nombre, precio, categoria, sucursal, descripcion, disponible, combo2_disponible) VALUES ($1, $2, $3, $4, $5, $6, COALESCE($7, TRUE)) RETURNING *",
+            [nombre, precio, categoria, sucursal, descripcion, disponible, combo2Value]
         );
         res.json(nuevo.rows[0]);
     } catch (err) {
@@ -470,11 +477,12 @@ app.post('/api/admin/productos', async (req, res) => {
 
 app.put('/api/admin/productos/:id', async (req, res) => {
     const { id } = req.params;
-    const { nombre, precio, categoria, sucursal, descripcion, disponible } = req.body;
+    const { nombre, precio, categoria, sucursal, descripcion, disponible, combo2_disponible } = req.body;
     try {
+        const combo2Value = combo2_disponible === undefined ? null : combo2_disponible;
         const actualizado = await pool.query(
-            "UPDATE productos SET nombre=$1, precio=$2, categoria=$3, sucursal=$4, descripcion=$5, disponible=$6 WHERE id=$7 RETURNING *",
-            [nombre, precio, categoria, sucursal, descripcion, disponible, id]
+            "UPDATE productos SET nombre=$1, precio=$2, categoria=$3, sucursal=$4, descripcion=$5, disponible=$6, combo2_disponible=COALESCE($7, combo2_disponible) WHERE id=$8 RETURNING *",
+            [nombre, precio, categoria, sucursal, descripcion, disponible, combo2Value, id]
         );
         res.json(actualizado.rows[0]);
     } catch (err) {

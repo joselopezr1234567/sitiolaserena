@@ -1,0 +1,450 @@
+import tkinter as tk
+from tkinter import ttk, messagebox
+import requests
+import os
+
+API_URL = os.environ.get("API_URL", "https://sitiolaserena.onrender.com/api")
+
+class AdminManager:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Administración de Pizzería - Fácil")
+        self.root.geometry("900x800")
+        self.root.configure(bg="#1a1a1a")
+        
+        self.usuario_actual = None
+        self.sucursal_activa = None
+        self.productos_lista = []
+        self.todos_productos = []
+        self.after_id = None
+        self.mostrar_login()
+
+    def limpiar_pantalla(self):
+        if self.after_id:
+            self.root.after_cancel(self.after_id)
+            self.after_id = None
+        for widget in self.root.winfo_children():
+            widget.destroy()
+
+    def mostrar_login(self):
+        self.limpiar_pantalla()
+        login_frame = tk.Frame(self.root, bg="#1a1a1a")
+        login_frame.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
+
+        tk.Label(login_frame, text="ENTRADA AL SISTEMA", font=("Arial", 24, "bold"), fg="#FF0000", bg="#1a1a1a").pack(pady=30)
+        
+        tk.Label(login_frame, text="Usuario:", fg="white", bg="#1a1a1a", font=("Arial", 14)).pack()
+        self.ent_user = tk.Entry(login_frame, font=("Arial", 16), width=20, justify='center')
+        self.ent_user.pack(pady=10)
+        self.ent_user.insert(0, "admin")
+
+        tk.Label(login_frame, text="Contraseña:", fg="white", bg="#1a1a1a", font=("Arial", 14)).pack()
+        self.ent_pass = tk.Entry(login_frame, font=("Arial", 16), show="*", width=20, justify='center')
+        self.ent_pass.pack(pady=10)
+        self.ent_pass.insert(0, "password")
+
+        tk.Button(login_frame, text="INGRESAR AHORA", command=self.login, bg="#00FF00", fg="black", font=("Arial", 14, "bold"), width=20, height=2, cursor="hand2").pack(pady=30)
+
+    def login(self):
+        user = self.ent_user.get()
+        password = self.ent_pass.get()
+        try:
+            res = requests.post(f"{API_URL}/login", json={"email": user, "password": password})
+            if res.status_code == 200:
+                data = res.json()
+                if data['usuario']['rol'] == 'admin':
+                    self.usuario_actual = data['usuario']
+                    self.mostrar_menu_principal()
+                else:
+                    messagebox.showerror("Error", "No tienes permiso")
+            else:
+                messagebox.showerror("Error", "Usuario o clave incorrecta")
+        except:
+            messagebox.showerror("Error", "No hay conexión con el servidor")
+
+    def mostrar_menu_principal(self):
+        self.limpiar_pantalla()
+        
+        # Header simple
+        header = tk.Frame(self.root, bg="#333", height=60)
+        header.pack(fill=tk.X)
+        tk.Label(header, text="PANEL PRINCIPAL", fg="white", bg="#333", font=("Arial", 18, "bold")).pack(pady=15)
+
+        menu_frame = tk.Frame(self.root, bg="#1a1a1a")
+        menu_frame.pack(expand=True)
+
+        tk.Label(menu_frame, text="¿Qué local quieres ver?", font=("Arial", 20, "bold"), fg="#FFD700", bg="#1a1a1a").pack(pady=30)
+
+        btn_style = {"font": ("Arial", 16, "bold"), "width": 30, "height": 3, "cursor": "hand2", "fg": "black"}
+
+        tk.Button(menu_frame, text="🍕 PIZZERÍA LA SERENA", command=lambda: self.abrir_gestion_sucursal("la_serena"), bg="#FF0000", **btn_style).pack(pady=15)
+        tk.Button(menu_frame, text="🍕 PIZZERÍA COQUIMBO", command=lambda: self.abrir_gestion_sucursal("coquimbo"), bg="#FF0000", **btn_style).pack(pady=15)
+        tk.Button(menu_frame, text="👥 GESTIONAR USUARIOS", command=self.abrir_gestion_usuarios, bg="#555", **btn_style).pack(pady=15)
+        
+        tk.Button(self.root, text="CERRAR SISTEMA", command=self.mostrar_login, bg="#333", fg="black", font=("Arial", 10, "bold")).pack(side=tk.BOTTOM, pady=20)
+
+    def abrir_gestion_sucursal(self, sucursal):
+        self.sucursal_activa = sucursal
+        self.limpiar_pantalla()
+        
+        # Título arriba
+        header = tk.Frame(self.root, bg="#FF0000", height=70)
+        header.pack(fill=tk.X)
+        tk.Button(header, text="ATRÁS", command=self.mostrar_menu_principal, bg="black", fg="black", font=("Arial", 12, "bold"), width=10).pack(side=tk.LEFT, padx=20, pady=15)
+        tk.Label(header, text=f"GESTIÓN: {sucursal.replace('_', ' ').upper()}", fg="black", bg="#FF0000", font=("Arial", 20, "bold")).pack(side=tk.LEFT, padx=100)
+
+        # Contenedor central
+        content = tk.Frame(self.root, bg="#1a1a1a")
+        content.pack(fill=tk.BOTH, expand=True, padx=50, pady=20)
+
+        # 1. Paso: Elegir Categoría
+        tk.Label(content, text="PASO 1: Elige qué quieres gestionar", font=("Arial", 14, "bold"), fg="#FFD700", bg="#1a1a1a").pack(pady=10)
+        
+        cat_frame = tk.Frame(content, bg="#1a1a1a")
+        cat_frame.pack(fill=tk.X)
+
+        self.cb_filtro_cat = ttk.Combobox(cat_frame, font=("Arial", 16), state="readonly", width=20)
+        self.cb_filtro_cat['values'] = ["PIZZAS", "BEBIDAS", "INGREDIENTES", "PROMOCIONES", "BASE", "ACOMPAÑAMIENTOS"]
+        self.cb_filtro_cat.set("PIZZAS")
+        self.cb_filtro_cat.pack(side=tk.LEFT, padx=10)
+        self.cb_filtro_cat.bind("<<ComboboxSelected>>", lambda e: self.refrescar_lista_combo())
+
+        # 2. Paso: Elegir Producto de esa categoría
+        tk.Label(content, text="PASO 2: Elige el producto o pulsa 'NUEVO'", font=("Arial", 14, "bold"), fg="#FFD700", bg="#1a1a1a").pack(pady=10)
+        
+        sel_frame = tk.Frame(content, bg="#1a1a1a")
+        sel_frame.pack(fill=tk.X)
+
+        self.combo_productos = ttk.Combobox(sel_frame, font=("Arial", 16), state="readonly", width=40)
+        self.combo_productos.pack(side=tk.LEFT, padx=10)
+        self.combo_productos.bind("<<ComboboxSelected>>", self.seleccionar_producto_combo)
+
+        self.btn_nuevo = tk.Button(sel_frame, text="➕ NUEVO", command=self.preparar_nuevo_producto, bg="#00FF00", fg="black", font=("Arial", 12, "bold"), width=10)
+        self.btn_nuevo.pack(side=tk.LEFT, padx=10)
+
+        # 3. Paso: Formulario (se activa al elegir algo)
+        self.form_frame = tk.Frame(content, bg="#222", bd=2, relief=tk.GROOVE, padx=30, pady=20)
+        self.form_frame.pack(fill=tk.BOTH, expand=True, pady=30)
+        
+        # Variables del formulario
+        self.var_id = tk.StringVar()
+        self.var_nombre = tk.StringVar()
+        self.var_precio = tk.StringVar()
+        self.var_cat = tk.StringVar()
+        self.var_disp = tk.BooleanVar(value=True)
+
+        # Campos visuales
+        self.label_style = {"bg": "#222", "fg": "white", "font": ("Arial", 12, "bold")}
+        self.entry_style = {"font": ("Arial", 14), "width": 35}
+
+        self.lbl_nombre = tk.Label(self.form_frame, text="Nombre de la Pizza / Producto:", **self.label_style)
+        self.lbl_nombre.pack(anchor=tk.W, pady=(10,0))
+        self.ent_nombre = tk.Entry(self.form_frame, textvariable=self.var_nombre, **self.entry_style)
+        self.ent_nombre.pack(pady=5)
+
+        tk.Label(self.form_frame, text="Precio (Solo números):", **self.label_style).pack(anchor=tk.W, pady=(10,0))
+        tk.Entry(self.form_frame, textvariable=self.var_precio, **self.entry_style).pack(pady=5)
+
+        self.lbl_cat = tk.Label(self.form_frame, text="Tipo de Producto:", **self.label_style)
+        self.lbl_cat.pack(anchor=tk.W, pady=(10,0))
+        self.cb_cat = ttk.Combobox(self.form_frame, textvariable=self.var_cat, values=["pizzas", "bebidas", "ingredientes", "promociones", "base", "acompañamientos"], font=("Arial", 14), width=33, state="readonly")
+        self.cb_cat.pack(pady=5)
+
+        self.lbl_desc = tk.Label(self.form_frame, text="Ingredientes / Descripción:", **self.label_style)
+        self.lbl_desc.pack(anchor=tk.W, pady=(10,0))
+        self.txt_desc = tk.Text(self.form_frame, height=4, width=35, font=("Arial", 12))
+        self.txt_desc.pack(pady=5)
+
+        self.chk_disp = tk.Checkbutton(self.form_frame, text="¿ESTÁ DISPONIBLE PARA LA VENTA?", variable=self.var_disp, bg="#222", fg="#00FF00", font=("Arial", 12, "bold"), selectcolor="#1a1a1a")
+        self.chk_disp.pack(pady=20)
+
+        self.lbl_combo2 = tk.Label(self.form_frame, text="PIZZAS DISPONIBLES EN PROMOCIÓN (2 FAMILIARES + BEBIDA):", **self.label_style)
+        self.list_combo2 = tk.Listbox(self.form_frame, selectmode=tk.MULTIPLE, height=10, width=35, font=("Arial", 12), bg="#111", fg="white", selectbackground="#FF0000", selectforeground="white")
+
+        # Botones finales
+        btns_final = tk.Frame(self.form_frame, bg="#222")
+        btns_final.pack(pady=10)
+
+        tk.Button(btns_final, text="💾 GUARDAR CAMBIOS", command=self.guardar_producto, bg="#00FF00", fg="black", font=("Arial", 14, "bold"), width=20, height=2).pack(side=tk.LEFT, padx=5)
+        tk.Button(btns_final, text="✖ CANCELAR / VOLVER", command=lambda: self.form_frame.pack_forget(), bg="#555", fg="black", font=("Arial", 12, "bold"), width=18, height=2).pack(side=tk.LEFT, padx=5)
+        self.btn_borrar = tk.Button(btns_final, text="🗑️ BORRAR", command=self.eliminar_producto, bg="#FF0000", fg="black", font=("Arial", 12, "bold"), width=10, height=2)
+        self.btn_borrar.pack(side=tk.LEFT, padx=5)
+
+        self.refrescar_lista_combo()
+        self.form_frame.pack_forget() # Ocultar hasta elegir algo
+
+    def refrescar_lista_combo(self):
+        try:
+            print(f"DEBUG: Consultando productos para sucursal: '{self.sucursal_activa}'")
+            # Forzar recarga con timestamp para evitar caché
+            res = requests.get(f"{API_URL}/admin/productos/todos?t={tk.IntVar().get()}")
+            if res.status_code == 200:
+                todos = res.json()
+                self.todos_productos = todos
+                
+                target_suc = self.sucursal_activa.strip().lower()
+                target_cat = self.cb_filtro_cat.get().strip().lower()
+                
+                nuevos_productos = []
+                for p in todos:
+                    p_suc = str(p.get('sucursal', '')).strip().lower()
+                    p_cat = str(p.get('categoria', '')).strip().lower()
+                    
+                    # Filtro por sucursal
+                    match_suc = (p_suc == target_suc or p_suc.replace('_', ' ') == target_suc.replace('_', ' '))
+                    # Filtro por categoría
+                    match_cat = (p_cat == target_cat)
+                    
+                    if match_suc and match_cat:
+                        nuevos_productos.append(p)
+                
+                # Actualizar lista siempre para reflejar el cambio de categoría
+                self.productos_lista = nuevos_productos
+                nombres = sorted([p['nombre'] for p in self.productos_lista])
+                self.combo_productos['values'] = nombres
+                
+                # Resetear selección si cambiamos de categoría y el producto actual no pertenece
+                actual_sel = self.combo_productos.get()
+                if actual_sel not in nombres:
+                    self.combo_productos.set(f"--- Elige una {self.cb_filtro_cat.get()} ---")
+                    self.form_frame.pack_forget()
+                
+            # AUTO-RECARGA cada 10 segundos
+            self.after_id = self.root.after(10000, self.refrescar_lista_combo)
+            
+        except Exception as e:
+            print(f"Error de auto-recarga: {e}")
+            self.after_id = self.root.after(10000, self.refrescar_lista_combo)
+
+    def _match_sucursal(self, p_suc: str, target_suc: str) -> bool:
+        p_suc = (p_suc or "").strip().lower()
+        target_suc = (target_suc or "").strip().lower()
+        if p_suc == target_suc:
+            return True
+        return p_suc.replace('_', ' ') == target_suc.replace('_', ' ')
+
+    def _cargar_pizzas_combo2(self):
+        self.list_combo2.delete(0, tk.END)
+        pizzas = []
+        for p in self.todos_productos:
+            if not self._match_sucursal(str(p.get('sucursal', '')), self.sucursal_activa):
+                continue
+            cat = str(p.get('categoria', '')).strip().lower()
+            if cat not in ("pizzas", "pizzas-familiares"):
+                continue
+            pizzas.append(p)
+        pizzas.sort(key=lambda x: str(x.get('nombre', '')).upper())
+        self._combo2_pizzas = pizzas
+        for p in pizzas:
+            self.list_combo2.insert(tk.END, str(p.get('nombre', '')).upper())
+        for idx, p in enumerate(pizzas):
+            if p.get('combo2_disponible', True):
+                self.list_combo2.selection_set(idx)
+
+    def _guardar_pizzas_combo2(self):
+        if not hasattr(self, "_combo2_pizzas"):
+            return
+        seleccion = set(self.list_combo2.curselection())
+        for idx, p in enumerate(self._combo2_pizzas):
+            combo2_disp = idx in seleccion
+            payload = {
+                "nombre": str(p.get("nombre", "")).upper(),
+                "precio": int(p.get("precio", 0) or 0),
+                "categoria": str(p.get("categoria", "")).strip().lower(),
+                "sucursal": p.get("sucursal", self.sucursal_activa),
+                "descripcion": p.get("descripcion") or "",
+                "disponible": bool(p.get("disponible", True)),
+                "combo2_disponible": combo2_disp,
+            }
+            try:
+                requests.put(f"{API_URL}/admin/productos/{p.get('id')}", json=payload, timeout=10)
+            except Exception:
+                pass
+
+    def seleccionar_producto_combo(self, event):
+        nombre_sel = self.combo_productos.get()
+        # Buscamos el producto exacto por nombre en nuestra lista filtrada
+        prod = next((p for p in self.productos_lista if p['nombre'] == nombre_sel), None)
+        
+        if prod:
+            # Limpiar y cargar datos
+            self.var_id.set(prod['id'])
+            self.var_nombre.set(prod['nombre'])
+            self.var_precio.set(prod['precio'])
+            
+            # Asegurar que la categoría se seleccione correctamente en el combo
+            cat_actual = str(prod['categoria']).strip().lower()
+            if cat_actual in self.cb_cat['values']:
+                self.cb_cat.set(cat_actual)
+            else:
+                self.cb_cat.set("pizzas")
+                
+            self.var_disp.set(prod['disponible'])
+            
+            # Cargar descripción
+            self.txt_desc.delete("1.0", tk.END)
+            desc = prod.get('descripcion')
+            self.txt_desc.insert("1.0", str(desc) if desc else "")
+            
+            # MOSTRAR FORMULARIO
+            self.form_frame.pack(fill=tk.BOTH, expand=True, pady=30)
+            self.btn_borrar.pack(side=tk.LEFT, padx=5)
+
+            # SI ES CATEGORÍA "BASE" O "PROMOCIONES"
+            # SOLO MOSTRAMOS EL PRECIO Y DISPONIBILIDAD PARA NO COMPLICAR
+            if cat_actual in ["base", "promociones"]:
+                self.lbl_nombre.pack_forget()
+                self.ent_nombre.pack_forget()
+                self.lbl_cat.pack_forget()
+                self.cb_cat.pack_forget()
+                self.lbl_desc.pack_forget()
+                self.txt_desc.pack_forget()
+                # El botón borrar también lo ocultamos para estas categorías
+                self.btn_borrar.pack_forget()
+                if cat_actual == "promociones":
+                    self.lbl_combo2.pack(anchor=tk.W, pady=(0, 5))
+                    self.list_combo2.pack(pady=(0, 15))
+                    self._cargar_pizzas_combo2()
+                else:
+                    self.lbl_combo2.pack_forget()
+                    self.list_combo2.pack_forget()
+            else:
+                # Mostrar todo de nuevo si no es base
+                self.lbl_nombre.pack(anchor=tk.W, pady=(10,0))
+                self.ent_nombre.pack(pady=5)
+                self.lbl_cat.pack(anchor=tk.W, pady=(10,0))
+                self.cb_cat.pack(pady=5)
+                self.lbl_desc.pack(anchor=tk.W, pady=(10,0))
+                self.txt_desc.pack(pady=5)
+                self.btn_borrar.pack(side=tk.LEFT, padx=5)
+                self.lbl_combo2.pack_forget()
+                self.list_combo2.pack_forget()
+        else:
+            print(f"DEBUG: No se encontró información para '{nombre_sel}'")
+
+    def preparar_nuevo_producto(self):
+        self.var_id.set("")
+        self.var_nombre.set("")
+        self.var_precio.set("")
+        self.var_cat.set("pizzas")
+        self.var_disp.set(True)
+        self.txt_desc.delete("1.0", tk.END)
+        self.combo_productos.set("NUEVO PRODUCTO")
+        
+        # Mostrar todo en el formulario
+        self.lbl_nombre.pack(anchor=tk.W, pady=(10,0))
+        self.ent_nombre.pack(pady=5)
+        self.lbl_cat.pack(anchor=tk.W, pady=(10,0))
+        self.cb_cat.pack(pady=5)
+        self.lbl_desc.pack(anchor=tk.W, pady=(10,0))
+        self.txt_desc.pack(pady=5)
+        
+        self.btn_borrar.pack_forget() # No se puede borrar algo que no existe
+        self.lbl_combo2.pack_forget()
+        self.list_combo2.pack_forget()
+        self.form_frame.pack(fill=tk.BOTH, expand=True, pady=30)
+
+    def guardar_producto(self):
+        if not self.var_nombre.get() or not self.var_precio.get():
+            messagebox.showwarning("Atención", "Escribe el NOMBRE y el PRECIO")
+            return
+        
+        data = {
+            "nombre": self.var_nombre.get().upper(),
+            "precio": int(self.var_precio.get()),
+            "categoria": self.var_cat.get(),
+            "sucursal": self.sucursal_activa,
+            "descripcion": self.txt_desc.get("1.0", tk.END).strip(),
+            "disponible": self.var_disp.get()
+        }
+        
+        try:
+            if self.var_id.get():
+                res = requests.put(f"{API_URL}/admin/productos/{self.var_id.get()}", json=data)
+            else:
+                res = requests.post(f"{API_URL}/admin/productos", json=data)
+            
+            if res.status_code == 200:
+                if self.var_cat.get().strip().lower() == "promociones":
+                    self._guardar_pizzas_combo2()
+                messagebox.showinfo("Listo", "¡Guardado con éxito!")
+                self.refrescar_lista_combo()
+                self.form_frame.pack_forget()
+        except:
+            messagebox.showerror("Error", "No se pudo guardar")
+
+    def eliminar_producto(self):
+        if messagebox.askyesno("Confirmar", "¿Seguro que quieres BORRAR este producto?"):
+            try:
+                requests.delete(f"{API_URL}/admin/productos/{self.var_id.get()}")
+                messagebox.showinfo("Listo", "Producto eliminado")
+                self.refrescar_lista_combo()
+                self.form_frame.pack_forget()
+            except:
+                messagebox.showerror("Error", "No se pudo eliminar")
+
+    def abrir_gestion_usuarios(self):
+        self.limpiar_pantalla()
+        header = tk.Frame(self.root, bg="#555", height=70)
+        header.pack(fill=tk.X)
+        tk.Button(header, text="ATRÁS", command=self.mostrar_menu_principal, bg="black", fg="black", font=("Arial", 12, "bold"), width=10).pack(side=tk.LEFT, padx=20, pady=15)
+        tk.Label(header, text="GESTIÓN DE USUARIOS", fg="white", bg="#555", font=("Arial", 20, "bold")).pack(side=tk.LEFT, padx=100)
+
+        content = tk.Frame(self.root, bg="#1a1a1a")
+        content.pack(fill=tk.BOTH, expand=True, padx=50, pady=20)
+
+        # Lista simple
+        tk.Label(content, text="Usuarios actuales:", font=("Arial", 12, "bold"), fg="white", bg="#1a1a1a").pack(anchor=tk.W)
+        self.tree_user = ttk.Treeview(content, columns=("id", "nombre", "rol"), show="headings", height=5)
+        self.tree_user.heading("id", text="ID"); self.tree_user.heading("nombre", text="NOMBRE"); self.tree_user.heading("rol", text="ROL")
+        self.tree_user.pack(fill=tk.X, pady=10)
+
+        # Formulario usuario
+        u_frame = tk.Frame(content, bg="#222", padx=20, pady=20)
+        u_frame.pack(fill=tk.X, pady=20)
+
+        self.u_nom = tk.StringVar(); self.u_mail = tk.StringVar(); self.u_pass = tk.StringVar()
+        
+        tk.Label(u_frame, text="Nombre:", bg="#222", fg="white").pack()
+        tk.Entry(u_frame, textvariable=self.u_nom, font=("Arial", 14), width=30).pack(pady=5)
+        
+        tk.Label(u_frame, text="Email/Usuario:", bg="#222", fg="white").pack()
+        tk.Entry(u_frame, textvariable=self.u_mail, font=("Arial", 14), width=30).pack(pady=5)
+        
+        tk.Label(u_frame, text="Clave:", bg="#222", fg="white").pack()
+        tk.Entry(u_frame, textvariable=self.u_pass, font=("Arial", 14), width=30, show="*").pack(pady=5)
+
+        tk.Button(u_frame, text="➕ CREAR NUEVO USUARIO", command=self.crear_usuario, bg="#00FF00", fg="black", font=("Arial", 12, "bold"), height=2).pack(pady=20)
+        tk.Button(content, text="❌ ELIMINAR SELECCIONADO", command=self.eliminar_usuario, bg="#FF0000", fg="black", font=("Arial", 10, "bold")).pack()
+
+        self.refrescar_usuarios()
+
+    def refrescar_usuarios(self):
+        for i in self.tree_user.get_children(): self.tree_user.delete(i)
+        try:
+            res = requests.get(f"{API_URL}/admin/usuarios")
+            if res.status_code == 200:
+                for u in res.json():
+                    self.tree_user.insert("", tk.END, values=(u['id'], u['nombre'], u['rol']))
+        except: pass
+
+    def crear_usuario(self):
+        data = {"nombre": self.u_nom.get(), "email": self.u_mail.get(), "password": self.u_pass.get(), "rol": "admin"}
+        try:
+            requests.post(f"{API_URL}/admin/usuarios", json=data)
+            messagebox.showinfo("Listo", "Usuario creado")
+            self.refrescar_usuarios()
+        except: pass
+
+    def eliminar_usuario(self):
+        sel = self.tree_user.selection()
+        if not sel: return
+        uid = self.tree_user.item(sel[0])['values'][0]
+        if messagebox.askyesno("Confirmar", "¿Borrar usuario?"):
+            requests.delete(f"{API_URL}/admin/usuarios/{uid}")
+            self.refrescar_usuarios()
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = AdminManager(root)
+    root.mainloop()

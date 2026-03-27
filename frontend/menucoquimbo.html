@@ -137,6 +137,7 @@
             const pizzas = productosDB.filter(p => p.categoria === 'pizzas');
             const bebidas = productosDB.filter(p => p.categoria === 'bebidas');
             const ingredientes = productosDB.filter(p => p.categoria === 'ingredientes');
+            const pizzasCombo2 = pizzas.filter(p => p.combo2_disponible !== false);
 
             if (tipo === 'combo2') {
                 titulo.innerText = "Combo: 2 Familiares + Bebida";
@@ -146,12 +147,12 @@
                 opciones.innerHTML = `
                     <div class="campo-pedido">
                         <label>Selecciona Pizza 1:</label>
-                        <select id="sel1" onchange="actualizarDescCombo()">${pizzas.map(p => `<option data-desc="${p.descripcion || ''}">${p.nombre}</option>`).join('')}</select>
+                        <select id="sel1" onchange="actualizarDescCombo()">${pizzasCombo2.map(p => `<option data-desc="${p.descripcion || ''}">${p.nombre}</option>`).join('')}</select>
                         <div id="desc-sel1" class="desc-pizzas"></div>
                     </div>
                     <div class="campo-pedido">
                         <label>Selecciona Pizza 2:</label>
-                        <select id="sel2" onchange="actualizarDescCombo()">${pizzas.map(p => `<option data-desc="${p.descripcion || ''}">${p.nombre}</option>`).join('')}</select>
+                        <select id="sel2" onchange="actualizarDescCombo()">${pizzasCombo2.map(p => `<option data-desc="${p.descripcion || ''}">${p.nombre}</option>`).join('')}</select>
                         <div id="desc-sel2" class="desc-pizzas"></div>
                     </div>
                     <div class="campo-pedido">
