@@ -34,6 +34,7 @@ Render crea una base vacía. Para subir tus tablas y datos desde tu computador:
    ```bash
    pg_dump -U macbook -d pizzeria_db -Fc -f backup.dump
    ```
+   Si en `pg_restore` te aparece algo como `unrecognized configuration parameter "transaction_timeout"`, es porque tu `pg_dump` es de una versión más nueva que el Postgres de Render. Solución recomendada: usa `pg_dump`/`pg_restore` versión 16 para generar el dump.
 2. En Render, copia el “External Database URL” de tu Postgres.
 3. Importa:
    ```bash
