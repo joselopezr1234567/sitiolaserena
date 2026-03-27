@@ -57,6 +57,11 @@ h1 {
     margin-top: 0;
 }
 
+.page-index h1 {
+    color: #ffffff;
+    font-family: "ITC Motter Corpus", "Rozha One", Arial, sans-serif;
+}
+
 /* --- ESTILOS PARA INDEX.HTML (Inicio) --- */
 .contenedor-principal {
     display: flex;
