@@ -2,7 +2,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Rozha+One&display=swap');
 
 body {
-    background-color: #000000;
+    background-color: #7B4B00;
     background-image: url('fondo.png');
     background-size: cover;
     background-position: center;
@@ -19,7 +19,7 @@ body {
 }
 
 .bg-conchevino {
-    background-color: #4b0015 !important;
+    background-color: #7B4B00 !important;
     background-image: none !important;
 }
 
