@@ -29,6 +29,7 @@ button, input, select, textarea {
 
 button {
     border-radius: 12px;
+    color: #ffffff;
 }
 
 body, body * {
@@ -178,7 +179,7 @@ h1 {
 
 .btn-volver:hover {
     background-color: #FF0000;
-    color: #000;
+    color: #ffffff;
 }
 
 /* --- BARRA DE NAVEGACIÓN --- */
@@ -327,7 +328,7 @@ h1 {
 
 .btn-rojo {
     background-color: #FF0000;
-    color: black;
+    color: #ffffff;
     border: none;
     padding: 12px 25px;
     font-weight: bold;
@@ -382,7 +383,7 @@ h1 {
 
 .btn-rojo-auth {
     background-color: #FF0000;
-    color: black;
+    color: #ffffff;
     border: none;
     padding: 15px;
     font-weight: bold;
@@ -461,7 +462,7 @@ h1 {
 .btn-eliminar {
     background: rgba(0, 0, 0, 0.35);
     border: 1px solid rgba(255, 0, 0, 0.8);
-    color: #FF0000;
+    color: #ffffff;
     font-size: 1.4rem;
     cursor: pointer;
     width: 38px;
@@ -476,7 +477,7 @@ h1 {
 
 .btn-eliminar:hover {
     background-color: #FF0000;
-    color: black;
+    color: #ffffff;
     border-color: rgba(255, 255, 255, 0.15);
     transform: scale(1.05);
 }
@@ -491,7 +492,7 @@ h1 {
     flex: 1;
     background: rgba(0, 0, 0, 0.35);
     border: 1px solid rgba(255, 0, 0, 0.65);
-    color: white;
+    color: #ffffff;
     padding: 12px;
     font-weight: bold;
     cursor: pointer;
@@ -509,7 +510,7 @@ h1 {
 .btn-pagar {
     flex: 1;
     background: linear-gradient(135deg, #ff0000 0%, #b30000 100%);
-    color: black;
+    color: #ffffff;
     border: 1px solid rgba(255, 255, 255, 0.12);
     padding: 12px;
     font-weight: bold;
