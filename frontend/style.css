@@ -1,6 +1,10 @@
 /* --- ESTILOS GENERALES --- */
 @import url('https://fonts.googleapis.com/css2?family=Rozha+One&display=swap');
 
+html {
+    font-size: 18px;
+}
+
 body {
     background-color: #7B4B00;
     background-image: url('fondo.png');

@@ -38,7 +38,7 @@ class DashboardPizzeria:
 
         header = tk.Frame(root, bg=TOP_BAR_BG)
         header.pack(fill=tk.X)
-        title_label = tk.Label(header, text=f"PEDIDOS ENTRANTES - {SUCURSAL.upper()}", font=("Arial", 24, "bold"), fg="#FF0000", bg=TOP_BAR_BG)
+        title_label = tk.Label(header, text=f"PEDIDOS ENTRANTES - {SUCURSAL.upper()}", font=("Arial", 24, "bold"), fg="#ffffff", bg=TOP_BAR_BG)
         title_label.pack(pady=15)
 
         # Tabla de Pedidos
