@@ -17,7 +17,7 @@
         .campo-pedido label {
             font-weight: bold;
             margin-bottom: 5px;
-            color: #333;
+            color: #ffffff;
         }
         .campo-pedido select {
             padding: 10px;
@@ -34,7 +34,7 @@
         }
         .desc-pizzas {
             font-size: 0.8rem;
-            color: #666;
+            color: #ffffff;
             font-style: italic;
             margin-top: 5px;
         }
@@ -183,7 +183,7 @@
                 const baseProd = productosDB.find(p => p.nombre === 'Base Pizza') || { precio: 7000 };
                 precioTotal.innerText = `$${baseProd.precio.toLocaleString()}`;
                 
-                opciones.innerHTML = `<p style="margin-bottom:10px; color:gray;">Base Salsa y Queso ($${baseProd.precio})</p>`;
+                opciones.innerHTML = `<p style="margin-bottom:10px; color:#ffffff;">Base Salsa y Queso ($${baseProd.precio})</p>`;
                 ingredientes.forEach(i => {
                     opciones.innerHTML += `
                         <div class="item-extra">
@@ -206,7 +206,7 @@
                             ${filtrados.length > 0 ? filtrados.map(f => `<option value="${f.precio}" data-desc="${f.descripcion || ''}">${f.nombre} ($${f.precio.toLocaleString()})</option>`).join('') : `<option value="">Sin opciones disponibles</option>`}
                         </select>
                     </div>
-                    <div id="descripcion-producto" style="margin-top: 10px; font-size: 0.9rem; color: #666; font-style: italic;">
+                    <div id="descripcion-producto" style="margin-top: 10px; font-size: 0.9rem; color: #ffffff; font-style: italic;">
                         ${filtrados[0]?.descripcion ? 'Ingredientes: ' + filtrados[0].descripcion : ''}
                     </div>
                 `;
