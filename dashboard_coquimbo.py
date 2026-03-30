@@ -228,28 +228,48 @@ class DashboardPizzeria:
     def imprimir_ticket(self, pedido):
         try:
             pedido_id = pedido.get('id')
-            lineas = []
-            lineas.append("PIZZERIA")
-            lineas.append(f"PEDIDO #{pedido_id}")
-            lineas.append(f"CLIENTE: {pedido.get('usuario_nombre', '')}")
-            lineas.append("-" * 32)
-            lineas.append("PRODUCTOS:")
-            for prod in pedido.get('productos', []):
-                lineas.append(f"- {prod.get('producto_nombre', '')}")
-                det = prod.get('detalles') or ""
-                if det:
-                    lineas.append(f"  {det}")
-            lineas.append("-" * 32)
-            lineas.append(f"TOTAL: ${pedido.get('total')}")
-            lineas.append("")
+            cliente = pedido.get('usuario_nombre', '')
+            productos = pedido.get('productos', [])
+            total = pedido.get('total')
 
             if Network:
                 p = Network(PRINTER_IP)
-                p.text(("\n".join(lineas) + "\n").encode("cp437", errors="replace"))
+                p.set(align="center", width=2, height=2, bold=True)
+                p.text("PEDIDO WEB\n")
+                p.set(align="left", width=1, height=1, bold=False)
+                p.text(f"Pedido #{pedido_id}\n")
+                p.text(f"Cliente: {cliente}\n")
+                p.text("\nProductos:\n")
+                for prod in productos:
+                    nombre = prod.get('producto_nombre', '')
+                    det = prod.get('detalles') or ""
+                    p.text(f"- {nombre}\n")
+                    if det:
+                        p.text(f"  {det}\n")
+                p.text("\n")
+                p.set(align="left", width=1, height=1, bold=True)
+                p.text(f"TOTAL: ${total}\n")
+                p.set(align="left", width=1, height=1, bold=False)
+                p.text("\n")
                 p.cut()
                 p.close()
                 self.root.after(0, lambda: self._set_print_status(f"Impresión OK: Pedido #{pedido_id}", "#00FF00"))
             else:
+                lineas = []
+                lineas.append("PEDIDO WEB")
+                lineas.append(f"Pedido #{pedido_id}")
+                lineas.append(f"Cliente: {cliente}")
+                lineas.append("")
+                lineas.append("Productos:")
+                for prod in productos:
+                    nombre = prod.get('producto_nombre', '')
+                    det = prod.get('detalles') or ""
+                    lineas.append(f"- {nombre}")
+                    if det:
+                        lineas.append(f"  {det}")
+                lineas.append("")
+                lineas.append(f"TOTAL: ${total}")
+                lineas.append("")
                 print("\n".join(lineas))
                 self.root.after(0, lambda: self._set_print_status("Error impresión: falta python-escpos", "#FF0000"))
             
