@@ -19,7 +19,7 @@
 
     <main class="contenedor-historial" id="lista-pedidos-usuario">
         <div style="text-align: center; padding: 50px;">
-            <p style="color: #FFD700; font-size: 1.2rem;">Cargando tus pedidos...</p>
+            <p style="color: #ffffff; font-size: 1.2rem;">Cargando tus pedidos...</p>
         </div>
     </main>
 
@@ -49,7 +49,7 @@
                     if (pedidos.length === 0) {
                         contenedor.innerHTML = `
                             <div style="text-align: center; padding: 40px; background-color: #111; border: 2px solid #FF0000; border-radius: 8px;">
-                                <i class="fas fa-receipt" style="font-size: 3rem; color: #FF0000; margin-bottom: 20px;"></i>
+                                <i class="fas fa-receipt" style="font-size: 3rem; color: #ffffff; margin-bottom: 20px;"></i>
                                 <p class="texto-rojo">Aún no has realizado ningún pedido.</p>
                                 <a href="index.html" class="btn-rojo" style="display: inline-block; width: auto; margin-top: 20px; padding: 10px 20px;">Hacer un Pedido</a>
                             </div>
@@ -60,26 +60,26 @@
                     let html = "";
                     pedidos.forEach(pedido => {
                         let statusText = "ESTADO: " + (pedido.estado || "desconocido");
-                        let statusColor = "#FFD700";
+                        let statusColor = "#ffffff";
 
                         if (pedido.estado === "pendiente_pago") {
                             statusText = "Pendiente de pago";
-                            statusColor = "#FFD700";
+                            statusColor = "#ffffff";
                         } else if (pedido.estado === "pagado") {
                             statusText = "Pago recibido";
-                            statusColor = "#00FF00";
+                            statusColor = "#ffffff";
                         } else if (pedido.estado === "rechazado") {
                             statusText = "Pago rechazado";
-                            statusColor = "#FF0000";
+                            statusColor = "#ffffff";
                         } else if (pedido.estado === "preparando") {
                             statusText = "¡Tu pizza se está preparando!";
-                            statusColor = "#FF8C00";
+                            statusColor = "#ffffff";
                         } else if (pedido.estado === "listo") {
                             statusText = "¡Tu pizza está lista para la entrega!";
-                            statusColor = "#00FF00";
+                            statusColor = "#ffffff";
                         } else if (pedido.estado === "pendiente") {
                             statusText = "Recibido - Esperando aceptación";
-                            statusColor = "#FFD700";
+                            statusColor = "#ffffff";
                         }
 
                         // Cálculo de hora estimada
@@ -90,7 +90,7 @@
                             const hora = fechaEstimada.getHours().toString().padStart(2, '0');
                             const mins = fechaEstimada.getMinutes().toString().padStart(2, '0');
                             horaEstimadaHtml = `
-                                <p style="color: #FFD700; font-weight: bold; margin-top: 10px;">
+                                <p style="color: #ffffff; font-weight: bold; margin-top: 10px;">
                                     <i class="fas fa-clock"></i> Entrega estimada: ${hora}:${mins} (${pedido.demora_estimada} min)
                                 </p>
                             `;
@@ -100,13 +100,13 @@
                             <div class="tarjeta-pedido" style="background: rgba(17, 17, 17, 0.78); border: 1px solid rgba(255, 0, 0, 0.65); border-radius: 18px; padding: 20px; margin-bottom: 30px; color: white; box-shadow: 0 18px 45px rgba(0, 0, 0, 0.65); backdrop-filter: blur(10px);">
                                 <div style="border-bottom: 1px solid #333; padding-bottom: 10px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: flex-start;">
                                     <div>
-                                        <h2 style="color: #FFD700; margin: 0; font-size: 1.4rem;">Pedido #${pedido.id}</h2>
-                                        <p style="color: #aaa; font-size: 0.8rem; margin: 5px 0;">Fecha: ${new Date(pedido.fecha).toLocaleString()}</p>
+                                        <h2 style="color: #ffffff; margin: 0; font-size: 1.4rem;">Pedido #${pedido.id}</h2>
+                                        <p style="color: #ffffff; font-size: 0.8rem; margin: 5px 0;">Fecha: ${new Date(pedido.fecha).toLocaleString()}</p>
                                         ${horaEstimadaHtml}
                                     </div>
                                     <div style="text-align: right;">
                                         <span style="color: ${statusColor}; font-weight: bold; font-size: 0.9rem; display: block;">${statusText}</span>
-                                        <span style="color: #aaa; font-size: 0.8rem;">Sucursal: ${pedido.sucursal || 'No especificada'}</span>
+                                        <span style="color: #ffffff; font-size: 0.8rem;">Sucursal: ${pedido.sucursal || 'No especificada'}</span>
                                     </div>
                                 </div>
                                 
@@ -118,8 +118,8 @@
                             html += `
                                 <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #222;">
                                     <div style="flex-grow: 1;">
-                                        <span style="display: block; font-weight: bold; color: #FF0000;">${item.producto_nombre}</span>
-                                        <span style="display: block; font-size: 0.75rem; color: #aaa;">${item.detalles || ''}</span>
+                                        <span style="display: block; font-weight: bold; color: #ffffff;">${item.producto_nombre}</span>
+                                        <span style="display: block; font-size: 0.75rem; color: #ffffff;">${item.detalles || ''}</span>
                                     </div>
                                     <span style="font-weight: bold;">$${precio.toLocaleString()}</span>
                                 </div>
@@ -128,7 +128,7 @@
 
                         html += `
                                 </div>
-                                <div style="margin-top: 15px; padding-top: 10px; border-top: 1px solid #333; text-align: right; font-size: 1.2rem; font-weight: bold; color: #FFD700;">
+                                <div style="margin-top: 15px; padding-top: 10px; border-top: 1px solid #333; text-align: right; font-size: 1.2rem; font-weight: bold; color: #ffffff;">
                                     TOTAL: $${pedido.total.toLocaleString()}
                                 </div>
                             </div>

@@ -31,12 +31,8 @@ function actualizarNavbar() {
             <a href="mipedido.html" class="my-order-link">
                 <i class="fas fa-receipt"></i> Mi Pedido
             </a>
-            <span style="color: #FFD700; font-weight: bold; margin-left: 15px;">
-                🍕 Hola, ${nombreUsuario}
-            </span>
-            <a href="#" id="btn-cerrar-sesion" style="font-size: 0.8rem; color: #ff4d4d; margin-left: 10px; text-decoration: underline;">
-                (Salir)
-            </a>
+            <span class="user-greeting">Hola, ${nombreUsuario}</span>
+            <a href="#" id="btn-cerrar-sesion" class="logout-link">Salir</a>
         `;
     } else {
         // SI NO ESTÁ LOGUEADO: Mostramos los botones de acceso

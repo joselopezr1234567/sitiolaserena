@@ -200,7 +200,7 @@ h1 {
 /* Botón Volver */
 .btn-volver {
     margin-top: 50px;
-    color: #FF0000;
+    color: #ffffff;
     text-decoration: none;
     border: 2px solid #FF0000;
     padding: 10px 25px;
@@ -208,6 +208,19 @@ h1 {
     font-weight: bold;
     text-transform: uppercase;
     transition: 0.3s;
+}
+
+.user-greeting {
+    color: #ffffff;
+    font-weight: bold;
+    margin-left: 15px;
+}
+
+.logout-link {
+    font-size: 0.8rem;
+    color: #ffffff;
+    margin-left: 10px;
+    text-decoration: underline;
 }
 
 .btn-volver:hover {
@@ -234,7 +247,7 @@ h1 {
 }
 
 .auth-links a {
-    color: #FF0000;
+    color: #ffffff;
     text-decoration: none;
     font-weight: bold;
     font-size: 0.9rem;
@@ -247,7 +260,7 @@ h1 {
 }
 
 .my-order-link {
-    color: #FFD700 !important; /* Dorado para destacar */
+    color: #ffffff !important;
     margin-right: 15px;
     font-size: 0.9rem;
     display: flex;
