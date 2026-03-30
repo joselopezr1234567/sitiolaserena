@@ -24,7 +24,10 @@ class DashboardPizzeria:
         self.root.configure(bg="#111")
 
         self.pedidos_vistos = set()
+        self.pedidos_impresos = set()
         self.running = True
+        self.print_status_var = tk.StringVar(value="Impresión: -")
+        self.print_status_color = "#ffffff"
         
         # Cola de impresión
         self.print_queue = queue.Queue()
@@ -40,6 +43,8 @@ class DashboardPizzeria:
         header.pack(fill=tk.X)
         title_label = tk.Label(header, text=f"PEDIDOS ENTRANTES - {SUCURSAL.upper()}", font=("Arial", 24, "bold"), fg="#ffffff", bg=TOP_BAR_BG)
         title_label.pack(pady=15)
+        self.print_status_label = tk.Label(header, textvariable=self.print_status_var, font=("Arial", 12, "bold"), fg=self.print_status_color, bg=TOP_BAR_BG)
+        self.print_status_label.pack(side=tk.RIGHT, padx=20)
 
         # Tabla de Pedidos
         columns = ("id", "usuario", "telefono", "productos", "total", "estado", "fecha")
@@ -151,6 +156,8 @@ class DashboardPizzeria:
                     if not self.pedidos_vistos:
                         for p in pedidos:
                             self.pedidos_vistos.add(p['id'])
+                            if p.get('estado') in ['pagado', 'preparando', 'listo']:
+                                self.pedidos_impresos.add(p['id'])
                     
                     self.root.after(0, self.update_table, pedidos)
             except Exception as e:
@@ -191,12 +198,10 @@ class DashboardPizzeria:
                 f"${p['total']}", p['estado'], str(p.get('fecha', ''))[:16]
             ))
             
-            # Si el pedido es nuevo y está en estado 'preparando' (recién llegado)
-            if p['id'] not in self.pedidos_vistos:
-                if p['estado'] in ['pagado', 'preparando']:
-                    # Encolar para impresión
-                    self.print_queue.put(p)
-                self.pedidos_vistos.add(p['id'])
+            if p.get('estado') in ['pagado', 'preparando'] and p['id'] not in self.pedidos_impresos:
+                self.print_queue.put(p)
+                self.pedidos_impresos.add(p['id'])
+            self.pedidos_vistos.add(p['id'])
 
         # Restaurar selección
         if selected_id:
@@ -216,29 +221,41 @@ class DashboardPizzeria:
             except Exception as e:
                 print(f"Error en el hilo de impresión: {e}")
 
+    def _set_print_status(self, texto: str, color: str):
+        self.print_status_var.set(texto)
+        self.print_status_label.configure(fg=color)
+
     def imprimir_ticket(self, pedido):
         try:
-            # En producción se usa la impresora real
-            # p = Network(PRINTER_IP)
-            
-            # Formato del Ticket
-            print(f"\n--- TICKET IMPRESIÓN ---")
-            print(f"PEDIDO #{pedido['id']}")
-            print(f"CLIENTE: {pedido['usuario_nombre']}")
-            print("-" * 32)
-            
-            print("PRODUCTOS:")
+            pedido_id = pedido.get('id')
+            lineas = []
+            lineas.append("PIZZERIA")
+            lineas.append(f"PEDIDO #{pedido_id}")
+            lineas.append(f"CLIENTE: {pedido.get('usuario_nombre', '')}")
+            lineas.append("-" * 32)
+            lineas.append("PRODUCTOS:")
             for prod in pedido.get('productos', []):
-                print(f"- {prod['producto_nombre']}")
-                if prod['detalles']:
-                    print(f"  Detalle: {prod['detalles']}")
-            
-            print("-" * 32)
-            print(f"TOTAL: ${pedido['total']}")
-            print(f"------------------------\n")
+                lineas.append(f"- {prod.get('producto_nombre', '')}")
+                det = prod.get('detalles') or ""
+                if det:
+                    lineas.append(f"  {det}")
+            lineas.append("-" * 32)
+            lineas.append(f"TOTAL: ${pedido.get('total')}")
+            lineas.append("")
+
+            if Network:
+                p = Network(PRINTER_IP)
+                p.text(("\n".join(lineas) + "\n").encode("cp437", errors="replace"))
+                p.cut()
+                p.close()
+                self.root.after(0, lambda: self._set_print_status(f"Impresión OK: Pedido #{pedido_id}", "#00FF00"))
+            else:
+                print("\n".join(lineas))
+                self.root.after(0, lambda: self._set_print_status("Error impresión: falta python-escpos", "#FF0000"))
             
         except Exception as e:
             print(f"Error al imprimir en {PRINTER_IP}: {e}")
+            self.root.after(0, lambda: self._set_print_status(f"Error impresión: Pedido #{pedido.get('id')}", "#FF0000"))
 
     def pedido_listo(self):
         selected = self.tree.selection()
