@@ -453,8 +453,8 @@ class DashboardPizzeria:
                     for item in tree.get_children():
                         tree.delete(item)
                     for p in pedidos:
-                        fecha = str(p.get("fecha", ""))[:19]
-                        hora = fecha[11:16] if len(fecha) >= 16 else fecha
+                        fecha_local = str(p.get("fecha", ""))[:19]
+                        hora = fecha_local[11:16] if len(fecha_local) >= 16 else fecha_local
                         estado_str = f" ({p.get('estado', 'pagado').upper()})" if p.get('estado') == 'listo' else ""
                         tree.insert("", tk.END, values=(
                             p.get("id", ""),

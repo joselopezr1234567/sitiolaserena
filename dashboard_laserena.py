@@ -439,8 +439,8 @@ class DashboardPizzeria:
 
         def cargar():
             try:
-                fecha = fecha_var.get().strip()
-                response = requests.get(f"{API_URL}/admin/cierre", params={"sucursal": SUCURSAL, "fecha": fecha})
+                fecha_filtro = fecha_var.get().strip()
+                response = requests.get(f"{API_URL}/admin/cierre", params={"sucursal": SUCURSAL, "fecha": fecha_filtro})
                 if response.status_code != 200:
                     self.root.after(0, lambda: messagebox.showerror("Error", "No se pudo obtener el cierre de caja"))
                     return
@@ -449,12 +449,12 @@ class DashboardPizzeria:
                 total_dia = data.get("total_dia", 0)
 
                 def pintar():
-                    lbl_titulo.configure(text=f"CIERRE DE CAJA - {SUCURSAL.upper()} ({fecha})")
+                    lbl_titulo.configure(text=f"CIERRE DE CAJA - {SUCURSAL.upper()} ({fecha_filtro})")
                     for item in tree.get_children():
                         tree.delete(item)
                     for p in pedidos:
-                        fecha = str(p.get("fecha", ""))[:19]
-                        hora = fecha[11:16] if len(fecha) >= 16 else fecha
+                        fecha_local = str(p.get("fecha", ""))[:19]
+                        hora = fecha_local[11:16] if len(fecha_local) >= 16 else fecha_local
                         
                         estado_str = f" ({p.get('estado', 'pagado').upper()})" if p.get('estado') == 'listo' else ""
                         cliente_nombre = p.get("usuario_nombre", "") + estado_str
