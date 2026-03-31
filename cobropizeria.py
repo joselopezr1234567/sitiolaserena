@@ -6,6 +6,22 @@ from tkinter import ttk, messagebox
 import threading
 
 
+MESES_ES = {
+    1: "Enero",
+    2: "Febrero",
+    3: "Marzo",
+    4: "Abril",
+    5: "Mayo",
+    6: "Junio",
+    7: "Julio",
+    8: "Agosto",
+    9: "Septiembre",
+    10: "Octubre",
+    11: "Noviembre",
+    12: "Diciembre",
+}
+
+
 def _env(name, default=""):
     val = os.environ.get(name)
     return default if val is None or val == "" else val
@@ -62,29 +78,40 @@ def _fetch_monthly_rows():
     out = _run_psql(query)
     return [line.split(",", 1) for line in out.splitlines() if line.strip()]
 
+
 def _build_rows(rows):
     built = []
     for mes, total_mes in rows:
         ventas = Decimal(total_mes or "0")
-        porcentaje_10 = ventas * Decimal("0.10")
-        iva_10 = porcentaje_10 * Decimal("0.19")
-        cobro_total = porcentaje_10 + iva_10
-        built.append((mes, ventas, porcentaje_10, iva_10, cobro_total))
+        porcentaje_1 = ventas * Decimal("0.01")
+        iva_19 = porcentaje_1 * Decimal("0.19")
+        cobro_total = porcentaje_1 + iva_19
+        built.append((mes, ventas, porcentaje_1, iva_19, cobro_total))
     return built
 
-class CobroPizezzeriaApp:
+
+def _mes_display(yyyy_mm: str) -> str:
+    year, month = yyyy_mm.split("-", 1)
+    m = int(month)
+    return f"{MESES_ES.get(m, yyyy_mm)} {year}"
+
+
+class CobroPizeriaApp:
     def __init__(self, root: tk.Tk):
         self.root = root
-        self.root.title("Cobro Pizzería - Resumen Mensual (10% + IVA)")
-        self.root.geometry("920x520")
+        self.root.title("Cobro Pizeria - Resumen Mensual (1% + IVA)")
+        self.root.geometry("920x560")
         self.root.configure(bg="#111")
+
+        self.built_all = []
+        self.mes_display_to_key = {}
 
         header = tk.Frame(self.root, bg="#333")
         header.pack(fill=tk.X, padx=15, pady=15)
 
         tk.Label(
             header,
-            text="COBRO PIZZERÍA (VENTAS Y COBRO 10% + IVA POR MES)",
+            text="COBRO PIZERIA (VENTAS Y COBRO 1% + IVA POR MES)",
             font=("Arial", 16, "bold"),
             fg="#ffffff",
             bg="#333",
@@ -102,14 +129,37 @@ class CobroPizezzeriaApp:
         )
         self.btn_cargar.pack(side=tk.RIGHT, padx=10, pady=10)
 
-        self.total_general_var = tk.StringVar(value="TOTAL VENTAS: $0 | COBRO (10% + IVA): $0")
+        filtro = tk.Frame(self.root, bg="#111")
+        filtro.pack(fill=tk.X, padx=15, pady=(0, 10))
+
         tk.Label(
-            self.root,
+            filtro,
+            text="MES:",
+            font=("Arial", 12, "bold"),
+            fg="#ffffff",
+            bg="#111",
+        ).pack(side=tk.LEFT)
+
+        self.mes_var = tk.StringVar(value="TODOS")
+        self.combo_mes = ttk.Combobox(
+            filtro,
+            textvariable=self.mes_var,
+            state="readonly",
+            width=22,
+            font=("Arial", 12),
+            values=["TODOS"],
+        )
+        self.combo_mes.pack(side=tk.LEFT, padx=10)
+        self.combo_mes.bind("<<ComboboxSelected>>", lambda e: self._aplicar_filtro())
+
+        self.total_general_var = tk.StringVar(value="TOTAL VENTAS: $0 | COBRO (1% + IVA): $0")
+        tk.Label(
+            filtro,
             textvariable=self.total_general_var,
-            font=("Arial", 14, "bold"),
+            font=("Arial", 12, "bold"),
             fg="#00FF00",
             bg="#111",
-        ).pack(padx=15, pady=(0, 10), anchor=tk.E)
+        ).pack(side=tk.RIGHT)
 
         style = ttk.Style()
         style.theme_use("clam")
@@ -117,17 +167,17 @@ class CobroPizezzeriaApp:
         style.configure("Treeview.Heading", font=("Arial", 10, "bold"))
         style.map("Treeview", background=[("selected", "#FF0000")])
 
-        cols = ("mes", "ventas", "porcentaje_10", "iva_10", "cobro_total")
+        cols = ("mes", "ventas", "porcentaje_1", "iva_19", "cobro_total")
         self.tree = ttk.Treeview(self.root, columns=cols, show="headings")
         self.tree.heading("mes", text="MES")
         self.tree.heading("ventas", text="VENTAS")
-        self.tree.heading("porcentaje_10", text="10%")
-        self.tree.heading("iva_10", text="IVA 19% DEL 10%")
+        self.tree.heading("porcentaje_1", text="1%")
+        self.tree.heading("iva_19", text="IVA 19% DEL 1%")
         self.tree.heading("cobro_total", text="COBRO TOTAL")
-        self.tree.column("mes", width=110)
+        self.tree.column("mes", width=140)
         self.tree.column("ventas", width=180, anchor=tk.E)
-        self.tree.column("porcentaje_10", width=140, anchor=tk.E)
-        self.tree.column("iva_10", width=160, anchor=tk.E)
+        self.tree.column("porcentaje_1", width=140, anchor=tk.E)
+        self.tree.column("iva_19", width=160, anchor=tk.E)
         self.tree.column("cobro_total", width=180, anchor=tk.E)
         self.tree.pack(fill=tk.BOTH, expand=True, padx=15, pady=(0, 15))
 
@@ -158,10 +208,32 @@ class CobroPizezzeriaApp:
         try:
             rows = _fetch_monthly_rows()
             built = _build_rows(rows)
-            self.root.after(0, lambda: self._pintar(built))
+            self.root.after(0, lambda: self._set_data(built))
         except Exception as e:
             self.root.after(0, lambda: messagebox.showerror("Error", str(e)))
             self.root.after(0, lambda: self._set_loading(False))
+
+    def _set_data(self, built):
+        self.built_all = built
+        displays = []
+        self.mes_display_to_key = {}
+        for mes, *_ in built:
+            disp = _mes_display(mes)
+            displays.append(disp)
+            self.mes_display_to_key[disp] = mes
+        self.combo_mes.configure(values=["TODOS"] + displays)
+        if self.mes_var.get() not in self.combo_mes["values"]:
+            self.mes_var.set("TODOS")
+        self._aplicar_filtro()
+
+    def _aplicar_filtro(self):
+        sel = self.mes_var.get()
+        if sel == "TODOS":
+            data = self.built_all
+        else:
+            key = self.mes_display_to_key.get(sel)
+            data = [r for r in self.built_all if r[0] == key]
+        self._pintar(data)
 
     def _pintar(self, built):
         for item in self.tree.get_children():
@@ -169,16 +241,16 @@ class CobroPizezzeriaApp:
 
         total_ventas = Decimal("0")
         total_cobro = Decimal("0")
-        for mes, ventas, porcentaje_10, iva_10, cobro_total in built:
+        for mes, ventas, porcentaje_1, iva_19, cobro_total in built:
             total_ventas += ventas
             total_cobro += cobro_total
-            self.tree.insert("", tk.END, values=(mes, _money(ventas), _money(porcentaje_10), _money(iva_10), _money(cobro_total)))
+            self.tree.insert("", tk.END, values=(mes, _money(ventas), _money(porcentaje_1), _money(iva_19), _money(cobro_total)))
 
-        self.total_general_var.set(f"TOTAL VENTAS: {_money(total_ventas)} | COBRO (10% + IVA): {_money(total_cobro)}")
+        self.total_general_var.set(f"TOTAL VENTAS: {_money(total_ventas)} | COBRO (1% + IVA): {_money(total_cobro)}")
         self._set_loading(False)
 
 
 if __name__ == "__main__":
     root = tk.Tk()
-    app = CobroPizezzeriaApp(root)
+    app = CobroPizeriaApp(root)
     root.mainloop()
