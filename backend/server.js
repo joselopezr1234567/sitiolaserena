@@ -530,11 +530,20 @@ app.delete('/api/admin/productos/:id', async (req, res) => {
 // Endpoint para Cierre de Caja
 app.get('/api/admin/cierre', async (req, res) => {
     const sucursal = req.query.sucursal;
+    const fecha = req.query.fecha;
     if (!sucursal) {
         return res.status(400).json({ error: "Falta parámetro sucursal" });
     }
 
     try {
+        let fechaFiltro = null;
+        if (fecha) {
+            const fechaStr = String(fecha).trim();
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(fechaStr)) {
+                return res.status(400).json({ error: "Formato de fecha inválido (YYYY-MM-DD)" });
+            }
+            fechaFiltro = fechaStr;
+        }
         // Obtener pedidos de HOY que estén en estado 'pagado' o 'listo', con fecha local
         const resultado = await pool.query(`
             SELECT id, usuario_nombre, telefono, total,
@@ -543,9 +552,9 @@ app.get('/api/admin/cierre', async (req, res) => {
             FROM pedidos 
             WHERE sucursal = $1 
               AND estado IN ('pagado', 'listo') 
-              AND DATE(fecha) = CURRENT_DATE
+              AND DATE(fecha) = COALESCE($2::date, CURRENT_DATE)
             ORDER BY fecha DESC
-        `, [sucursal]);
+        `, [sucursal, fechaFiltro]);
 
         const pedidos = resultado.rows.map(p => ({ ...p, fecha: p.fecha_local }));
         

@@ -5,6 +5,7 @@ import time
 import threading
 import os
 import queue
+import datetime
 try:
     from escpos.printer import Network
 except Exception:
@@ -392,12 +393,33 @@ class DashboardPizzeria:
         header = tk.Frame(win, bg=TOP_BAR_BG)
         header.pack(fill=tk.X, padx=15, pady=15)
 
-        lbl_titulo = tk.Label(header, text=f"CIERRE DE CAJA - {SUCURSAL.upper()} (HOY)", font=("Arial", 16, "bold"), fg="#ffffff", bg=TOP_BAR_BG)
+        fecha_var = tk.StringVar(value=datetime.date.today().strftime("%Y-%m-%d"))
+        lbl_titulo = tk.Label(header, text=f"CIERRE DE CAJA - {SUCURSAL.upper()}", font=("Arial", 16, "bold"), fg="#ffffff", bg=TOP_BAR_BG)
         lbl_titulo.pack(side=tk.LEFT, padx=10, pady=10)
 
         total_var = tk.StringVar(value="TOTAL: $0")
         lbl_total = tk.Label(header, textvariable=total_var, font=("Arial", 16, "bold"), fg="#00FF00", bg=TOP_BAR_BG)
         lbl_total.pack(side=tk.RIGHT, padx=10, pady=10)
+
+        filtros = tk.Frame(win, bg="#111")
+        filtros.pack(fill=tk.X, padx=15, pady=(0, 10))
+
+        tk.Label(filtros, text="FECHA (YYYY-MM-DD):", font=("Arial", 12, "bold"), fg="#ffffff", bg="#111").pack(side=tk.LEFT)
+        tk.Entry(filtros, textvariable=fecha_var, font=("Arial", 12), width=12, justify="center").pack(side=tk.LEFT, padx=10)
+
+        def cambiar_dia(delta: int):
+            try:
+                actual = datetime.date.fromisoformat(fecha_var.get().strip())
+            except Exception:
+                actual = datetime.date.today()
+            nueva = actual + datetime.timedelta(days=delta)
+            fecha_var.set(nueva.strftime("%Y-%m-%d"))
+            threading.Thread(target=cargar, daemon=True).start()
+
+        tk.Button(filtros, text="◀", command=lambda: cambiar_dia(-1), bg="#555", fg="black", font=("Arial", 11, "bold"), width=3).pack(side=tk.LEFT, padx=(0, 6))
+        tk.Button(filtros, text="HOY", command=lambda: (fecha_var.set(datetime.date.today().strftime("%Y-%m-%d")), threading.Thread(target=cargar, daemon=True).start()), bg="#DDDDDD", fg="black", font=("Arial", 11, "bold"), width=6).pack(side=tk.LEFT, padx=(0, 6))
+        tk.Button(filtros, text="▶", command=lambda: cambiar_dia(1), bg="#555", fg="black", font=("Arial", 11, "bold"), width=3).pack(side=tk.LEFT, padx=(0, 10))
+        tk.Button(filtros, text="CARGAR", command=lambda: threading.Thread(target=cargar, daemon=True).start(), bg="#00FF00", fg="black", font=("Arial", 11, "bold"), width=10).pack(side=tk.LEFT)
 
         columns = ("id", "hora", "cliente", "telefono", "total")
         tree = ttk.Treeview(win, columns=columns, show="headings")
@@ -417,7 +439,8 @@ class DashboardPizzeria:
 
         def cargar():
             try:
-                response = requests.get(f"{API_URL}/admin/cierre", params={"sucursal": SUCURSAL})
+                fecha = fecha_var.get().strip()
+                response = requests.get(f"{API_URL}/admin/cierre", params={"sucursal": SUCURSAL, "fecha": fecha})
                 if response.status_code != 200:
                     self.root.after(0, lambda: messagebox.showerror("Error", "No se pudo obtener el cierre de caja"))
                     return
@@ -426,6 +449,7 @@ class DashboardPizzeria:
                 total_dia = data.get("total_dia", 0)
 
                 def pintar():
+                    lbl_titulo.configure(text=f"CIERRE DE CAJA - {SUCURSAL.upper()} ({fecha})")
                     for item in tree.get_children():
                         tree.delete(item)
                     for p in pedidos:
@@ -440,7 +464,7 @@ class DashboardPizzeria:
                             hora,
                             cliente_nombre,
                             p.get("telefono", ""),
-                            f"${int(p.get('total', 0))}"
+                            f"${int(p.get('total', 0)):,}".replace(",", ".")
                         ))
                     total_var.set(f"TOTAL: ${int(total_dia):,}".replace(",", "."))
 
