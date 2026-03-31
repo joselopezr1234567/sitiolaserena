@@ -40,7 +40,8 @@ app.get('/api/health', (req, res) => {
 
 // --- CONFIGURACIÓN WEBPAY PLUS (TRANSBANK) ---
 function getWebpayTransaction() {
-    if (process.env.TRANSBANK_ENV === 'PRODUCTION' && process.env.TRANSBANK_COMMERCE_CODE && process.env.TRANSBANK_API_KEY) {
+    const env = String(process.env.TRANSBANK_ENV || '').toLowerCase();
+    if (env === 'production' && process.env.TRANSBANK_COMMERCE_CODE && process.env.TRANSBANK_API_KEY) {
         const options = new Options(process.env.TRANSBANK_COMMERCE_CODE, process.env.TRANSBANK_API_KEY, Environment.Production);
         console.log('🟢 Webpay Plus configurado en PRODUCCIÓN');
         return new WebpayPlus.Transaction(options);
@@ -381,6 +382,32 @@ app.put('/api/config/:sucursal', async (req, res) => {
 });
 
 // --- RUTAS DE ADMINISTRACIÓN (PRODUCTOS Y USUARIOS) ---
+
+function requireResetToken(req, res, next) {
+    if (!process.env.ADMIN_RESET_TOKEN) {
+        return res.status(500).json({ error: "ADMIN_RESET_TOKEN no configurado" });
+    }
+    const token = req.header('x-admin-token') || req.body?.token;
+    if (!token || token !== process.env.ADMIN_RESET_TOKEN) {
+        return res.status(401).json({ error: "No autorizado" });
+    }
+    return next();
+}
+
+app.post('/api/admin/reset-db', requireResetToken, async (req, res) => {
+    try {
+        await pool.query("BEGIN");
+        await pool.query("TRUNCATE TABLE pedidos, usuarios RESTART IDENTITY CASCADE");
+        await pool.query("COMMIT");
+        return res.json({ ok: true });
+    } catch (err) {
+        try {
+            await pool.query("ROLLBACK");
+        } catch {}
+        console.error("Error reseteando DB:", err?.message || err);
+        return res.status(500).json({ error: "No se pudo resetear la base de datos" });
+    }
+});
 
 // 12. CRUD de Productos
 app.get('/api/admin/productos/todos', async (req, res) => {
