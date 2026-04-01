@@ -628,7 +628,24 @@ app.post('/api/pagos/crear', async (req, res) => {
 // Retorno de Webpay (commit)
 async function manejarRetornoWebpay(req, res) {
     const token_ws = req.body?.token_ws || req.query?.token_ws;
+    const tbk_token = req.body?.TBK_TOKEN || req.query?.TBK_TOKEN;
+    const tbk_id_sesion = req.body?.TBK_ID_SESION || req.query?.TBK_ID_SESION;
+    const tbk_orden_compra = req.body?.TBK_ORDEN_COMPRA || req.query?.TBK_ORDEN_COMPRA;
+
     if (!token_ws) {
+        if (tbk_token || tbk_id_sesion || tbk_orden_compra) {
+            const buyOrder = String(tbk_orden_compra || "");
+            const pedidoId = parseInt(buyOrder, 10);
+            if (!Number.isNaN(pedidoId)) {
+                try {
+                    await pool.query("UPDATE pedidos SET estado = $1 WHERE id = $2", ["cancelado", pedidoId]);
+                } catch (e) {
+                    console.error('No se pudo actualizar estado del pedido cancelado:', e.message);
+                }
+            }
+            const destino = `${FRONTEND_URL}/mipedido.html?estado=cancelado&orden=${encodeURIComponent(buyOrder)}`;
+            return res.redirect(302, destino);
+        }
         return res.redirect(302, `${FRONTEND_URL}/mipedido.html?estado=error`);
     }
     try {
