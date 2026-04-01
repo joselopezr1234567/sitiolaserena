@@ -625,6 +625,18 @@ app.post('/api/pagos/crear', async (req, res) => {
     }
 });
 
+app.get('/api/pagos/status/:token', async (req, res) => {
+    const token = req.params.token;
+    try {
+        const tx = getWebpayTransaction();
+        const result = await tx.status(token);
+        return res.json(result);
+    } catch (e) {
+        console.error('Error consultando estado Webpay:', e?.response?.data || e.message);
+        return res.status(500).json({ error: 'No se pudo consultar el estado' });
+    }
+});
+
 // Retorno de Webpay (commit)
 async function manejarRetornoWebpay(req, res) {
     const token_ws = req.body?.token_ws || req.query?.token_ws;
