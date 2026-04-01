@@ -17,6 +17,7 @@ class AdminManager:
         self.productos_lista = []
         self.todos_productos = []
         self.after_id = None
+        self.modo_nuevo = False
         self.mostrar_login()
 
     def limpiar_pantalla(self):
@@ -205,7 +206,7 @@ class AdminManager:
                 
                 # Resetear selección si cambiamos de categoría y el producto actual no pertenece
                 actual_sel = self.combo_productos.get()
-                if actual_sel not in nombres:
+                if not self.modo_nuevo and actual_sel not in nombres:
                     self.combo_productos.set(f"--- Elige una {self.cb_filtro_cat.get()} ---")
                     self.form_frame.pack_forget()
                 
@@ -262,6 +263,7 @@ class AdminManager:
                 pass
 
     def seleccionar_producto_combo(self, event):
+        self.modo_nuevo = False
         nombre_sel = self.combo_productos.get()
         # Buscamos el producto exacto por nombre en nuestra lista filtrada
         prod = next((p for p in self.productos_lista if p['nombre'] == nombre_sel), None)
@@ -323,6 +325,7 @@ class AdminManager:
             print(f"DEBUG: No se encontró información para '{nombre_sel}'")
 
     def preparar_nuevo_producto(self):
+        self.modo_nuevo = True
         self.var_id.set("")
         self.var_nombre.set("")
         self.var_precio.set("")
@@ -368,6 +371,7 @@ class AdminManager:
                 if self.var_cat.get().strip().lower() == "promociones":
                     self._guardar_pizzas_combo2()
                 messagebox.showinfo("Listo", "¡Guardado con éxito!")
+                self.modo_nuevo = False
                 self.refrescar_lista_combo()
                 self.form_frame.pack_forget()
         except:
