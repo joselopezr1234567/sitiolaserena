@@ -97,6 +97,33 @@ async function initProductosSchema() {
 
 initProductosSchema().catch((e) => console.error('Error inicializando schema de productos:', e.message));
 
+async function initAcompanamientosBootstrap() {
+    const defaults = [
+        { nombre: "PALITOS DE AJO", descripcion: "8 Palitos de Ajo + salsa de tomate", precio: 4000 },
+        { nombre: "SALSA DE TOMATE", descripcion: "Salsa extra", precio: 600 },
+    ];
+    try {
+        for (const sucursal of ["la_serena", "coquimbo"]) {
+            for (const item of defaults) {
+                const exists = await pool.query(
+                    "SELECT id FROM productos WHERE sucursal = $1 AND lower(nombre) = lower($2) LIMIT 1",
+                    [sucursal, item.nombre]
+                );
+                if (exists.rows.length > 0) continue;
+                await pool.query(
+                    "INSERT INTO productos (nombre, precio, categoria, sucursal, descripcion, disponible, combo2_disponible) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+                    [item.nombre, item.precio, "acompañamientos", sucursal, item.descripcion, true, true]
+                );
+            }
+        }
+        console.log("✅ Acompañamientos bootstrap OK");
+    } catch (e) {
+        console.error("Error creando acompañamientos bootstrap:", e?.message || e);
+    }
+}
+
+initAcompanamientosBootstrap();
+
 async function initAdminBootstrap() {
     try {
         const existing = await pool.query("SELECT id FROM usuarios WHERE rol = 'admin' LIMIT 1");
