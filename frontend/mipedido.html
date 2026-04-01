@@ -30,6 +30,24 @@
     <script src="config.js"></script>
     <script src="auth-navbar.js"></script>
     <script>
+        const TZ_CHILE = 'America/Santiago';
+        const fmtFechaHoraChile = new Intl.DateTimeFormat('es-CL', {
+            timeZone: TZ_CHILE,
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+        });
+        const fmtHoraChile = new Intl.DateTimeFormat('es-CL', {
+            timeZone: TZ_CHILE,
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false
+        });
+
         async function cargarPedidos() {
             const nombreUsuario = localStorage.getItem('usuario_nombre');
             const contenedor = document.getElementById('lista-pedidos-usuario');
@@ -87,11 +105,10 @@
                         if (pedido.demora_estimada && pedido.estado !== "listo") {
                             const fechaPedido = new Date(pedido.fecha);
                             const fechaEstimada = new Date(fechaPedido.getTime() + pedido.demora_estimada * 60000);
-                            const hora = fechaEstimada.getHours().toString().padStart(2, '0');
-                            const mins = fechaEstimada.getMinutes().toString().padStart(2, '0');
+                            const horaEstimada = fmtHoraChile.format(fechaEstimada);
                             horaEstimadaHtml = `
                                 <p style="color: #ffffff; font-weight: bold; margin-top: 10px;">
-                                    <i class="fas fa-clock"></i> Entrega estimada: ${hora}:${mins} (${pedido.demora_estimada} min)
+                                    <i class="fas fa-clock"></i> Entrega estimada: ${horaEstimada} (${pedido.demora_estimada} min)
                                 </p>
                             `;
                         }
@@ -101,7 +118,7 @@
                                 <div style="border-bottom: 1px solid #333; padding-bottom: 10px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: flex-start;">
                                     <div>
                                         <h2 style="color: #ffffff; margin: 0; font-size: 1.4rem;">Pedido #${pedido.id}</h2>
-                                        <p style="color: #ffffff; font-size: 0.8rem; margin: 5px 0;">Fecha: ${new Date(pedido.fecha).toLocaleString()}</p>
+                                        <p style="color: #ffffff; font-size: 0.8rem; margin: 5px 0;">Fecha: ${fmtFechaHoraChile.format(new Date(pedido.fecha))}</p>
                                         ${horaEstimadaHtml}
                                     </div>
                                     <div style="text-align: right;">
