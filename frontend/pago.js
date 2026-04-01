@@ -45,11 +45,6 @@ async function pagarCarritoConWebpay(sucursal, usuario, telefono) {
       localStorage.setItem('last_webpay_buyOrder', String(datos.buyOrder || pedidoId || ''));
       localStorage.setItem('last_webpay_url', String(datos.url || ''));
     } catch (e) {}
-
-    window.prompt(
-      `Token Webpay (token_ws) para Transbank:\nOrden: ${datos.buyOrder || pedidoId}\nCópialo y luego presiona OK para continuar al pago.`,
-      String(datos.token || '')
-    );
     const form = document.createElement('form');
     form.method = 'POST';
     form.action = datos.url;
