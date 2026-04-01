@@ -76,13 +76,13 @@ class AdminManager:
 
         tk.Label(menu_frame, text="¿Qué local quieres ver?", font=("Arial", 20, "bold"), fg="#ffffff", bg="#1a1a1a").pack(pady=30)
 
-        btn_style = {"font": ("Arial", 16, "bold"), "width": 30, "height": 3, "cursor": "hand2", "fg": "black"}
+        btn_style = {"font": ("Arial", 16, "bold"), "width": 30, "height": 3, "cursor": "hand2", "fg": "white"}
 
         tk.Button(menu_frame, text="🍕 PIZZERÍA LA SERENA", command=lambda: self.abrir_gestion_sucursal("la_serena"), bg="#FF0000", **btn_style).pack(pady=15)
         tk.Button(menu_frame, text="🍕 PIZZERÍA COQUIMBO", command=lambda: self.abrir_gestion_sucursal("coquimbo"), bg="#FF0000", **btn_style).pack(pady=15)
         tk.Button(menu_frame, text="👥 GESTIONAR USUARIOS", command=self.abrir_gestion_usuarios, bg="#555", **btn_style).pack(pady=15)
         
-        tk.Button(self.root, text="CERRAR SISTEMA", command=self.mostrar_login, bg="#333", fg="black", font=("Arial", 10, "bold")).pack(side=tk.BOTTOM, pady=20)
+        tk.Button(self.root, text="CERRAR SISTEMA", command=self.mostrar_login, bg="#333", fg="white", font=("Arial", 10, "bold")).pack(side=tk.BOTTOM, pady=20)
 
     def abrir_gestion_sucursal(self, sucursal):
         self.sucursal_activa = sucursal
@@ -91,7 +91,7 @@ class AdminManager:
         # Título arriba
         header = tk.Frame(self.root, bg="#333", height=70)
         header.pack(fill=tk.X)
-        tk.Button(header, text="ATRÁS", command=self.mostrar_menu_principal, bg="black", fg="black", font=("Arial", 12, "bold"), width=10).pack(side=tk.LEFT, padx=20, pady=15)
+        tk.Button(header, text="ATRÁS", command=self.mostrar_menu_principal, bg="black", fg="white", font=("Arial", 12, "bold"), width=10).pack(side=tk.LEFT, padx=20, pady=15)
         tk.Label(header, text=f"GESTIÓN: {sucursal.replace('_', ' ').upper()}", fg="white", bg="#333", font=("Arial", 20, "bold")).pack(side=tk.LEFT, padx=100)
 
         # Contenedor central
@@ -167,8 +167,8 @@ class AdminManager:
         btns_final.pack(pady=10)
 
         tk.Button(btns_final, text="💾 GUARDAR CAMBIOS", command=self.guardar_producto, bg="#00FF00", fg="black", font=("Arial", 14, "bold"), width=20, height=2).pack(side=tk.LEFT, padx=5)
-        tk.Button(btns_final, text="✖ CANCELAR / VOLVER", command=lambda: self.form_frame.pack_forget(), bg="#555", fg="black", font=("Arial", 12, "bold"), width=18, height=2).pack(side=tk.LEFT, padx=5)
-        self.btn_borrar = tk.Button(btns_final, text="🗑️ BORRAR", command=self.eliminar_producto, bg="#FF0000", fg="black", font=("Arial", 12, "bold"), width=10, height=2)
+        tk.Button(btns_final, text="✖ CANCELAR / VOLVER", command=lambda: self.form_frame.pack_forget(), bg="#555", fg="white", font=("Arial", 12, "bold"), width=18, height=2).pack(side=tk.LEFT, padx=5)
+        self.btn_borrar = tk.Button(btns_final, text="🗑️ BORRAR", command=self.eliminar_producto, bg="#FF0000", fg="white", font=("Arial", 12, "bold"), width=10, height=2)
         self.btn_borrar.pack(side=tk.LEFT, padx=5)
 
         self.refrescar_lista_combo()
@@ -391,7 +391,7 @@ class AdminManager:
         self.limpiar_pantalla()
         header = tk.Frame(self.root, bg="#333", height=70)
         header.pack(fill=tk.X)
-        tk.Button(header, text="ATRÁS", command=self.mostrar_menu_principal, bg="black", fg="black", font=("Arial", 12, "bold"), width=10).pack(side=tk.LEFT, padx=20, pady=15)
+        tk.Button(header, text="ATRÁS", command=self.mostrar_menu_principal, bg="black", fg="white", font=("Arial", 12, "bold"), width=10).pack(side=tk.LEFT, padx=20, pady=15)
         tk.Label(header, text="GESTIÓN DE USUARIOS", fg="white", bg="#333", font=("Arial", 20, "bold")).pack(side=tk.LEFT, padx=100)
 
         content = tk.Frame(self.root, bg="#1a1a1a")
@@ -419,7 +419,7 @@ class AdminManager:
         tk.Entry(u_frame, textvariable=self.u_pass, font=("Arial", 14), width=30, show="*").pack(pady=5)
 
         tk.Button(u_frame, text="➕ CREAR NUEVO USUARIO", command=self.crear_usuario, bg="#00FF00", fg="black", font=("Arial", 12, "bold"), height=2).pack(pady=20)
-        tk.Button(content, text="❌ ELIMINAR SELECCIONADO", command=self.eliminar_usuario, bg="#FF0000", fg="black", font=("Arial", 10, "bold")).pack()
+        tk.Button(content, text="❌ ELIMINAR SELECCIONADO", command=self.eliminar_usuario, bg="#FF0000", fg="white", font=("Arial", 10, "bold")).pack()
 
         self.refrescar_usuarios()
 
