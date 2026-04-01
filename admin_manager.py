@@ -9,7 +9,11 @@ class AdminManager:
     def __init__(self, root):
         self.root = root
         self.root.title("Administración de Pizzería - Fácil")
-        self.root.geometry("900x800")
+        sw = self.root.winfo_screenwidth()
+        sh = self.root.winfo_screenheight()
+        w = min(900, max(720, sw - 80))
+        h = min(800, max(600, sh - 120))
+        self.root.geometry(f"{w}x{h}")
         self.root.configure(bg="#1a1a1a")
         
         self.usuario_actual = None
@@ -26,6 +30,48 @@ class AdminManager:
             self.after_id = None
         for widget in self.root.winfo_children():
             widget.destroy()
+
+    def _scroll_container(self, parent):
+        wrapper = tk.Frame(parent, bg="#1a1a1a")
+        canvas = tk.Canvas(wrapper, bg="#1a1a1a", highlightthickness=0)
+        scrollbar = ttk.Scrollbar(wrapper, orient="vertical", command=canvas.yview)
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+        inner = tk.Frame(canvas, bg="#1a1a1a")
+        window_id = canvas.create_window((0, 0), window=inner, anchor="nw")
+
+        def on_configure(_evt=None):
+            canvas.configure(scrollregion=canvas.bbox("all"))
+
+        def on_canvas_configure(evt):
+            canvas.itemconfigure(window_id, width=evt.width)
+
+        inner.bind("<Configure>", on_configure)
+        canvas.bind("<Configure>", on_canvas_configure)
+
+        def _bind_mousewheel(_evt=None):
+            def _on_mousewheel(e):
+                canvas.yview_scroll(int(-1 * (e.delta / 120)), "units")
+            def _on_linux_up(_e):
+                canvas.yview_scroll(-1, "units")
+            def _on_linux_down(_e):
+                canvas.yview_scroll(1, "units")
+            canvas.bind_all("<MouseWheel>", _on_mousewheel)
+            canvas.bind_all("<Button-4>", _on_linux_up)
+            canvas.bind_all("<Button-5>", _on_linux_down)
+
+        def _unbind_mousewheel(_evt=None):
+            canvas.unbind_all("<MouseWheel>")
+            canvas.unbind_all("<Button-4>")
+            canvas.unbind_all("<Button-5>")
+
+        canvas.bind("<Enter>", _bind_mousewheel)
+        canvas.bind("<Leave>", _unbind_mousewheel)
+
+        return wrapper, inner
 
     def mostrar_login(self):
         self.limpiar_pantalla()
@@ -94,9 +140,11 @@ class AdminManager:
         tk.Button(header, text="ATRÁS", command=self.mostrar_menu_principal, bg="black", fg="white", font=("Arial", 12, "bold"), width=10).pack(side=tk.LEFT, padx=20, pady=15)
         tk.Label(header, text=f"GESTIÓN: {sucursal.replace('_', ' ').upper()}", fg="white", bg="#333", font=("Arial", 20, "bold")).pack(side=tk.LEFT, padx=100)
 
-        # Contenedor central
-        content = tk.Frame(self.root, bg="#1a1a1a")
-        content.pack(fill=tk.BOTH, expand=True, padx=50, pady=20)
+        scroll_wrap, scroll_inner = self._scroll_container(self.root)
+        scroll_wrap.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
+
+        content = tk.Frame(scroll_inner, bg="#1a1a1a")
+        content.pack(fill=tk.BOTH, expand=True, padx=30, pady=10)
 
         # 1. Paso: Elegir Categoría
         tk.Label(content, text="PASO 1: Elige qué quieres gestionar", font=("Arial", 14, "bold"), fg="#ffffff", bg="#1a1a1a").pack(pady=10)
@@ -394,8 +442,11 @@ class AdminManager:
         tk.Button(header, text="ATRÁS", command=self.mostrar_menu_principal, bg="black", fg="white", font=("Arial", 12, "bold"), width=10).pack(side=tk.LEFT, padx=20, pady=15)
         tk.Label(header, text="GESTIÓN DE USUARIOS", fg="white", bg="#333", font=("Arial", 20, "bold")).pack(side=tk.LEFT, padx=100)
 
-        content = tk.Frame(self.root, bg="#1a1a1a")
-        content.pack(fill=tk.BOTH, expand=True, padx=50, pady=20)
+        scroll_wrap, scroll_inner = self._scroll_container(self.root)
+        scroll_wrap.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
+
+        content = tk.Frame(scroll_inner, bg="#1a1a1a")
+        content.pack(fill=tk.BOTH, expand=True, padx=30, pady=10)
 
         # Lista simple
         tk.Label(content, text="Usuarios actuales:", font=("Arial", 12, "bold"), fg="white", bg="#1a1a1a").pack(anchor=tk.W)
