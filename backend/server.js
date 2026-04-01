@@ -97,6 +97,30 @@ async function initProductosSchema() {
 
 initProductosSchema().catch((e) => console.error('Error inicializando schema de productos:', e.message));
 
+async function initAdminBootstrap() {
+    try {
+        const existing = await pool.query("SELECT id FROM usuarios WHERE rol = 'admin' LIMIT 1");
+        if (existing.rows.length > 0) return;
+
+        const adminEmail = process.env.ADMIN_EMAIL || "admin";
+        const adminPassword = process.env.ADMIN_PASSWORD || "password";
+        const adminNombre = process.env.ADMIN_NOMBRE || "admin";
+        const adminTelefono = process.env.ADMIN_TELEFONO || "";
+
+        const salt = await bcrypt.genSalt(10);
+        const hashedPass = await bcrypt.hash(adminPassword, salt);
+        await pool.query(
+            "INSERT INTO usuarios (nombre, telefono, email, password, rol) VALUES ($1, $2, $3, $4, $5)",
+            [adminNombre, adminTelefono, adminEmail, hashedPass, "admin"]
+        );
+        console.log(`✅ Admin bootstrap creado: ${adminEmail}`);
+    } catch (e) {
+        console.error("Error creando admin bootstrap:", e?.message || e);
+    }
+}
+
+initAdminBootstrap();
+
 // --- RUTAS DE PRODUCTOS (MENÚS) ---
 
 // 1. Obtener productos por sucursal (Para menulaserena.html y menucoquimbo.html)
