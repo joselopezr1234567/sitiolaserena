@@ -326,6 +326,42 @@ app.post('/api/login', async (req, res) => {
     }
 });
 
+app.post('/api/admin/login', async (req, res) => {
+    const { email, password } = req.body || {};
+    const token = req.header('x-admin-manager-token') || '';
+    const expected = process.env.ADMIN_MANAGER_TOKEN || '';
+    if (!expected) {
+        return res.status(500).json({ error: "ADMIN_MANAGER_TOKEN no configurado" });
+    }
+    if (!token || token !== expected) {
+        return res.status(401).json({ error: "No autorizado" });
+    }
+    try {
+        const usuario = await pool.query("SELECT * FROM usuarios WHERE email = $1", [email]);
+        if (usuario.rows.length === 0) {
+            return res.status(400).json({ error: "Credenciales inválidas" });
+        }
+        const esValida = await bcrypt.compare(password, usuario.rows[0].password);
+        if (!esValida) {
+            return res.status(400).json({ error: "Credenciales inválidas" });
+        }
+        if (usuario.rows[0].rol !== 'admin') {
+            return res.status(403).json({ error: "No tienes permiso" });
+        }
+        return res.json({
+            mensaje: "Login exitoso",
+            usuario: {
+                nombre: usuario.rows[0].nombre,
+                telefono: usuario.rows[0].telefono,
+                rol: usuario.rows[0].rol
+            }
+        });
+    } catch (err) {
+        console.error(err.message);
+        return res.status(500).json({ error: "Error en el servidor" });
+    }
+});
+
 // --- RUTAS DE PEDIDOS (PARA PRODUCCIÓN) ---
 
 // 4. Crear un nuevo pedido (carrito.html)

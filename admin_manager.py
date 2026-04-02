@@ -4,6 +4,7 @@ import requests
 import os
 
 API_URL = os.environ.get("API_URL", "https://sitiolaserena.onrender.com/api")
+ADMIN_MANAGER_TOKEN = os.environ.get("ADMIN_MANAGER_TOKEN", "")
 
 class AdminManager:
     def __init__(self, root):
@@ -96,7 +97,13 @@ class AdminManager:
         user = self.ent_user.get()
         password = self.ent_pass.get()
         try:
-            res = requests.post(f"{API_URL}/login", json={"email": user, "password": password})
+            headers = {}
+            url = f"{API_URL}/login"
+            payload = {"email": user, "password": password}
+            if ADMIN_MANAGER_TOKEN:
+                url = f"{API_URL}/admin/login"
+                headers["x-admin-manager-token"] = ADMIN_MANAGER_TOKEN
+            res = requests.post(url, json=payload, headers=headers)
             if res.status_code == 200:
                 data = res.json()
                 if data['usuario']['rol'] == 'admin':
@@ -105,7 +112,14 @@ class AdminManager:
                 else:
                     messagebox.showerror("Error", "No tienes permiso")
             else:
-                messagebox.showerror("Error", "Usuario o clave incorrecta")
+                try:
+                    err = res.json().get("error")
+                except Exception:
+                    err = None
+                if err == "Verificación anti-robot fallida":
+                    messagebox.showerror("Error", "Login bloqueado por verificación anti-robot. Configura ADMIN_MANAGER_TOKEN en este PC y en el backend.")
+                else:
+                    messagebox.showerror("Error", "Usuario o clave incorrecta")
         except:
             messagebox.showerror("Error", "No hay conexión con el servidor")
 
