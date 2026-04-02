@@ -38,6 +38,21 @@
             font-style: italic;
             margin-top: 5px;
         }
+        .spinner-center {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 140px;
+        }
+        .spinner {
+            width: 48px;
+            height: 48px;
+            border: 5px solid #fff;
+            border-top-color: #ff0000;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 </head>
 <body class="bg-conchevino page-menu">
@@ -104,6 +119,8 @@
     <script src="config.js"></script>
     <script>
         let productosDB = [];
+        let productosCargados = false;
+        let pendienteTipo = null;
 
         function normalizarCategoria(s) {
             return (s || "").trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -122,6 +139,12 @@
                     categoria: normalizarCategoria(p.categoria)
                 }));
                 actualizarNavbar();
+                productosCargados = true;
+                if (pendienteTipo) {
+                    const t = pendienteTipo;
+                    pendienteTipo = null;
+                    prepararPedido(t);
+                }
             } catch (e) {
                 console.error("Error conectando al servidor:", e);
             }
@@ -135,6 +158,15 @@
             
             opciones.innerHTML = "";
             modal.style.display = "block";
+            const btnAdd = document.getElementById('add-to-cart');
+            if (btnAdd) btnAdd.disabled = true;
+
+            if (!productosCargados) {
+                pendienteTipo = tipo;
+                titulo.innerText = "Cargando opciones...";
+                opciones.innerHTML = `<div class="spinner-center"><div class="spinner"></div></div>`;
+                return;
+            }
 
             const pizzas = productosDB.filter(p => p.categoria === 'pizzas' || p.categoria === 'pizzas-familiares');
             const bebidas = productosDB.filter(p => p.categoria === 'bebidas');
@@ -205,6 +237,12 @@
                 const tipoNorm = normalizarCategoria(tipo);
                 const cat = tipoNorm === 'pizzas-familiares' ? 'pizzas' : tipoNorm;
                 const filtrados = productosDB.filter(p => p.categoria === cat || (cat === 'pizzas' && p.categoria === 'pizzas-familiares'));
+                if (filtrados.length === 0) {
+                    pendienteTipo = tipo;
+                    titulo.innerText = "Cargando opciones...";
+                    opciones.innerHTML = `<div class="spinner-center"><div class="spinner"></div></div>`;
+                    return;
+                }
                 titulo.innerText = tipo.replace('-', ' ').toUpperCase();
                 
                 opciones.innerHTML = `
@@ -222,6 +260,7 @@
                         const sel = document.getElementById('sel-simple');
                         if (sel) actualizarPrecioSimple(sel);
                     }, 10);
+                    if (btnAdd) btnAdd.disabled = false;
                 }
             }
 

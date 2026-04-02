@@ -21,6 +21,26 @@
     <meta name="twitter:image" content="https://www.pizzaninfa.cl/PortadaLaSerena.png">
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+<style>
+    #page-loader {
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.85);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+    }
+    .spinner {
+        width: 64px;
+        height: 64px;
+        border: 6px solid #fff;
+        border-top-color: #ff0000;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+</style>
 </head>
 <body class="bg-conchevino page-index">
 
@@ -48,5 +68,29 @@
     </main>
 
     <script src="auth-navbar.js"></script>
+    <div id="page-loader"><div class="spinner"></div></div>
+    <script>
+        (function(){
+            const loader = document.getElementById('page-loader');
+            function hide() { loader.style.display = 'none'; }
+            function waitImages() {
+                const imgs = Array.from(document.images);
+                if (!imgs.length) { hide(); return; }
+                let left = imgs.length;
+                const done = () => { if (--left <= 0) hide(); };
+                imgs.forEach(img => {
+                    if (img.complete) { done(); }
+                    else {
+                        img.addEventListener('load', done, { once: true });
+                        img.addEventListener('error', done, { once: true });
+                    }
+                });
+                // Fallback por si algún evento no llega
+                setTimeout(hide, 5000);
+            }
+            if (document.readyState === 'complete') waitImages();
+            else window.addEventListener('load', waitImages, { once: true });
+        })();
+    </script>
 </body>
 </html>
