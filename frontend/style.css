@@ -411,7 +411,7 @@ h1 {
 }
 
 .campo label {
-    color: #FF0000;
+    color: #ffffff;
     font-weight: bold;
     text-transform: uppercase;
     font-size: 0.8rem;
@@ -424,6 +424,10 @@ h1 {
     color: white;
     border-radius: 4px;
     outline: none;
+}
+
+.campo input::placeholder {
+    color: rgba(255, 255, 255, 0.75);
 }
 
 .campo input:focus { border-color: #FF0000; }
