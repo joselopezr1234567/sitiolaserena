@@ -3,6 +3,7 @@ const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
 const cors = require('cors'); // Permite que el frontend se comunique con el backend
 const https = require('https');
+const crypto = require('crypto');
 require('dotenv').config();
 const {
     WebpayPlus,
@@ -30,6 +31,38 @@ app.use(cors({
 })); // Importante para evitar errores de bloqueo en el navegador
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+function getAdminTokenFromReq(req) {
+    const headerToken = req.header('x-admin-token') || req.header('x-admin-manager-token') || '';
+    if (headerToken) return headerToken;
+    const auth = req.header('authorization') || '';
+    const m = auth.match(/^Bearer\s+(.+)$/i);
+    return m ? m[1] : '';
+}
+
+function safeEqualString(a, b) {
+    if (typeof a !== 'string' || typeof b !== 'string') return false;
+    if (a.length !== b.length) return false;
+    try {
+        return crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
+    } catch {
+        return false;
+    }
+}
+
+app.use('/api/admin', (req, res, next) => {
+    const expected = String(process.env.ADMIN_API_TOKEN || '');
+    if (!expected) return next();
+    const token = getAdminTokenFromReq(req);
+    if (!token || !safeEqualString(token, expected)) {
+        return res.status(401).json({ error: 'No autorizado' });
+    }
+    return next();
+});
+
+app.get('/api/admin/ping', (req, res) => {
+    res.json({ ok: true });
+});
 
 app.get('/', (req, res) => {
     res.type('text/plain').send('API sitiolaserena OK. Prueba /api/health');
@@ -328,15 +361,21 @@ app.post('/api/login', async (req, res) => {
 
 app.post('/api/admin/login', async (req, res) => {
     const { email, password } = req.body || {};
-    const token = req.header('x-admin-manager-token') || '';
-    const expected = process.env.ADMIN_MANAGER_TOKEN || '';
+    const expected = String(process.env.ADMIN_API_TOKEN || '');
     if (!expected) {
-        return res.status(500).json({ error: "ADMIN_MANAGER_TOKEN no configurado" });
+        return res.status(500).json({ error: "ADMIN_API_TOKEN no configurado" });
     }
-    if (!token || token !== expected) {
+    const token = getAdminTokenFromReq(req);
+    if (!token || !safeEqualString(token, expected)) {
         return res.status(401).json({ error: "No autorizado" });
     }
     try {
+        if (!email || !password) {
+            return res.json({
+                mensaje: "Login exitoso",
+                usuario: { nombre: "admin", telefono: "", rol: "admin" }
+            });
+        }
         const usuario = await pool.query("SELECT * FROM usuarios WHERE email = $1", [email]);
         if (usuario.rows.length === 0) {
             return res.status(400).json({ error: "Credenciales inválidas" });

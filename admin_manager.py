@@ -4,7 +4,7 @@ import requests
 import os
 
 API_URL = os.environ.get("API_URL", "https://sitiolaserena.onrender.com/api")
-ADMIN_MANAGER_TOKEN = os.environ.get("ADMIN_MANAGER_TOKEN", "")
+ADMIN_API_TOKEN = os.environ.get("ADMIN_API_TOKEN", "")
 
 class AdminManager:
     def __init__(self, root):
@@ -18,6 +18,7 @@ class AdminManager:
         self.root.configure(bg="#1a1a1a")
         
         self.usuario_actual = None
+        self.admin_token = None
         self.sucursal_activa = None
         self.productos_lista = []
         self.todos_productos = []
@@ -81,45 +82,36 @@ class AdminManager:
 
         tk.Label(login_frame, text="ENTRADA AL SISTEMA", font=("Arial", 24, "bold"), fg="#FF0000", bg="#1a1a1a").pack(pady=30)
         
-        tk.Label(login_frame, text="Usuario:", fg="white", bg="#1a1a1a", font=("Arial", 14)).pack()
+        tk.Label(login_frame, text="Usuario (opcional):", fg="white", bg="#1a1a1a", font=("Arial", 14)).pack()
         self.ent_user = tk.Entry(login_frame, font=("Arial", 16), width=20, justify='center')
         self.ent_user.pack(pady=10)
         self.ent_user.insert(0, "admin")
 
-        tk.Label(login_frame, text="Contraseña:", fg="white", bg="#1a1a1a", font=("Arial", 14)).pack()
+        tk.Label(login_frame, text="Token de acceso:", fg="white", bg="#1a1a1a", font=("Arial", 14)).pack()
         self.ent_pass = tk.Entry(login_frame, font=("Arial", 16), show="*", width=20, justify='center')
         self.ent_pass.pack(pady=10)
-        self.ent_pass.insert(0, "password")
 
         tk.Button(login_frame, text="INGRESAR AHORA", command=self.login, bg="#00FF00", fg="black", font=("Arial", 14, "bold"), width=20, height=2, cursor="hand2").pack(pady=30)
 
+    def _headers(self):
+        if not self.admin_token:
+            return {}
+        return {"x-admin-token": self.admin_token}
+
     def login(self):
-        user = self.ent_user.get()
-        password = self.ent_pass.get()
+        user = (self.ent_user.get() or "admin").strip()
+        token = (self.ent_pass.get() or "").strip() or (ADMIN_API_TOKEN or "").strip()
         try:
-            headers = {}
-            url = f"{API_URL}/login"
-            payload = {"email": user, "password": password}
-            if ADMIN_MANAGER_TOKEN:
-                url = f"{API_URL}/admin/login"
-                headers["x-admin-manager-token"] = ADMIN_MANAGER_TOKEN
-            res = requests.post(url, json=payload, headers=headers)
+            if not token:
+                messagebox.showerror("Error", "Falta token. Configura ADMIN_API_TOKEN o pégalo aquí.")
+                return
+            self.admin_token = token
+            res = requests.get(f"{API_URL}/admin/ping", headers=self._headers(), timeout=10)
             if res.status_code == 200:
-                data = res.json()
-                if data['usuario']['rol'] == 'admin':
-                    self.usuario_actual = data['usuario']
-                    self.mostrar_menu_principal()
-                else:
-                    messagebox.showerror("Error", "No tienes permiso")
-            else:
-                try:
-                    err = res.json().get("error")
-                except Exception:
-                    err = None
-                if err == "Verificación anti-robot fallida":
-                    messagebox.showerror("Error", "Login bloqueado por verificación anti-robot. Configura ADMIN_MANAGER_TOKEN en este PC y en el backend.")
-                else:
-                    messagebox.showerror("Error", "Usuario o clave incorrecta")
+                self.usuario_actual = {"nombre": user, "telefono": "", "rol": "admin"}
+                self.mostrar_menu_principal()
+                return
+            messagebox.showerror("Error", "Token inválido")
         except:
             messagebox.showerror("Error", "No hay conexión con el servidor")
 
@@ -240,7 +232,7 @@ class AdminManager:
         try:
             print(f"DEBUG: Consultando productos para sucursal: '{self.sucursal_activa}'")
             # Forzar recarga con timestamp para evitar caché
-            res = requests.get(f"{API_URL}/admin/productos/todos?t={tk.IntVar().get()}")
+            res = requests.get(f"{API_URL}/admin/productos/todos?t={tk.IntVar().get()}", headers=self._headers())
             if res.status_code == 200:
                 todos = res.json()
                 self.todos_productos = todos
@@ -320,7 +312,7 @@ class AdminManager:
                 "combo2_disponible": combo2_disp,
             }
             try:
-                requests.put(f"{API_URL}/admin/productos/{p.get('id')}", json=payload, timeout=10)
+                requests.put(f"{API_URL}/admin/productos/{p.get('id')}", json=payload, timeout=10, headers=self._headers())
             except Exception:
                 pass
 
@@ -425,9 +417,9 @@ class AdminManager:
         
         try:
             if self.var_id.get():
-                res = requests.put(f"{API_URL}/admin/productos/{self.var_id.get()}", json=data)
+                res = requests.put(f"{API_URL}/admin/productos/{self.var_id.get()}", json=data, headers=self._headers())
             else:
-                res = requests.post(f"{API_URL}/admin/productos", json=data)
+                res = requests.post(f"{API_URL}/admin/productos", json=data, headers=self._headers())
             
             if res.status_code == 200:
                 if self.var_cat.get().strip().lower() == "promociones":
@@ -442,7 +434,7 @@ class AdminManager:
     def eliminar_producto(self):
         if messagebox.askyesno("Confirmar", "¿Seguro que quieres BORRAR este producto?"):
             try:
-                requests.delete(f"{API_URL}/admin/productos/{self.var_id.get()}")
+                requests.delete(f"{API_URL}/admin/productos/{self.var_id.get()}", headers=self._headers())
                 messagebox.showinfo("Listo", "Producto eliminado")
                 self.refrescar_lista_combo()
                 self.form_frame.pack_forget()
@@ -491,7 +483,7 @@ class AdminManager:
     def refrescar_usuarios(self):
         for i in self.tree_user.get_children(): self.tree_user.delete(i)
         try:
-            res = requests.get(f"{API_URL}/admin/usuarios")
+            res = requests.get(f"{API_URL}/admin/usuarios", headers=self._headers())
             if res.status_code == 200:
                 for u in res.json():
                     self.tree_user.insert("", tk.END, values=(u['id'], u['nombre'], u['rol']))
@@ -500,7 +492,7 @@ class AdminManager:
     def crear_usuario(self):
         data = {"nombre": self.u_nom.get(), "email": self.u_mail.get(), "password": self.u_pass.get(), "rol": "admin"}
         try:
-            requests.post(f"{API_URL}/admin/usuarios", json=data)
+            requests.post(f"{API_URL}/admin/usuarios", json=data, headers=self._headers())
             messagebox.showinfo("Listo", "Usuario creado")
             self.refrescar_usuarios()
         except: pass
@@ -510,7 +502,7 @@ class AdminManager:
         if not sel: return
         uid = self.tree_user.item(sel[0])['values'][0]
         if messagebox.askyesno("Confirmar", "¿Borrar usuario?"):
-            requests.delete(f"{API_URL}/admin/usuarios/{uid}")
+            requests.delete(f"{API_URL}/admin/usuarios/{uid}", headers=self._headers())
             self.refrescar_usuarios()
 
 if __name__ == "__main__":

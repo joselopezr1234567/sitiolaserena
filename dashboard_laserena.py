@@ -14,8 +14,14 @@ except Exception:
 # CONFIGURACIÓN ESPECÍFICA PARA LA SERENA
 SUCURSAL = "La Serena"
 API_URL = os.environ.get("API_URL", "https://sitiolaserena.onrender.com/api")
+ADMIN_API_TOKEN = os.environ.get("ADMIN_API_TOKEN", "")
 PRINTER_IP = "192.168.1.108" # POR FAVOR ACTUALIZA ESTA IP PARA LA SERENA
 TOP_BAR_BG = "#333"
+
+def _admin_headers():
+    if not ADMIN_API_TOKEN:
+        return {}
+    return {"x-admin-token": ADMIN_API_TOKEN}
 
 class DashboardPizzeria:
     def __init__(self, root):
@@ -149,7 +155,7 @@ class DashboardPizzeria:
         while self.running:
             try:
                 # Se envía el filtro de sucursal en la URL
-                response = requests.get(f"{API_URL}/admin/pedidos?sucursal={SUCURSAL}")
+                response = requests.get(f"{API_URL}/admin/pedidos?sucursal={SUCURSAL}", headers=_admin_headers())
                 if response.status_code == 200:
                     pedidos = response.json()
                     
@@ -370,7 +376,7 @@ class DashboardPizzeria:
 
         def actualizar_estado_prod(prod_id, is_disponible):
             try:
-                response = requests.put(f"{API_URL}/admin/productos/{prod_id}/disponibilidad", json={"disponible": is_disponible})
+                response = requests.put(f"{API_URL}/admin/productos/{prod_id}/disponibilidad", json={"disponible": is_disponible}, headers=_admin_headers())
                 if response.status_code == 200:
                     # Recargar para actualizar colores
                     cargar_productos_desde_api()
@@ -440,7 +446,7 @@ class DashboardPizzeria:
         def cargar():
             try:
                 fecha_filtro = fecha_var.get().strip()
-                response = requests.get(f"{API_URL}/admin/cierre", params={"sucursal": SUCURSAL, "fecha": fecha_filtro})
+                response = requests.get(f"{API_URL}/admin/cierre", params={"sucursal": SUCURSAL, "fecha": fecha_filtro}, headers=_admin_headers())
                 if response.status_code != 200:
                     self.root.after(0, lambda: messagebox.showerror("Error", "No se pudo obtener el cierre de caja"))
                     return
