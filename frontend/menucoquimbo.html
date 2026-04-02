@@ -193,6 +193,7 @@
                     </div>
                 `;
                 setTimeout(actualizarDescCombo, 10);
+                if (btnAdd) btnAdd.disabled = false;
             } 
             else if (tipo === 'mitades') {
                 titulo.innerText = "Pizza por Mitades";
@@ -209,6 +210,7 @@
                     </div>
                 `;
                 setTimeout(calcMitades, 10);
+                if (btnAdd) btnAdd.disabled = false;
             }
             else if (tipo === 'al-gusto') {
                 titulo.innerText = "Familiar al Gusto";
@@ -225,6 +227,7 @@
                     `;
                 });
                 opciones.querySelectorAll('input').forEach(i => i.onchange = () => calcAlGusto(baseProd.precio));
+                if (btnAdd) btnAdd.disabled = false;
             }
             else {
                 const tipoNorm = normalizarCategoria(tipo);
