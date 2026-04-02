@@ -2,6 +2,7 @@ const express = require('express');
 const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
 const cors = require('cors'); // Permite que el frontend se comunique con el backend
+const https = require('https');
 require('dotenv').config();
 const {
     WebpayPlus,
@@ -36,6 +37,49 @@ app.get('/', (req, res) => {
 
 app.get('/api/health', (req, res) => {
     res.json({ ok: true });
+});
+
+function verifyTurnstile(responseToken, remoteIp) {
+    const secret = process.env.TURNSTILE_SECRET_KEY;
+    if (!secret) return Promise.resolve({ ok: true });
+    if (!responseToken) return Promise.resolve({ ok: false });
+
+    const body = new URLSearchParams();
+    body.set('secret', secret);
+    body.set('response', responseToken);
+    if (remoteIp) body.set('remoteip', remoteIp);
+
+    return new Promise((resolve) => {
+        const req = https.request(
+            'https://challenges.cloudflare.com/turnstile/v0/siteverify',
+            {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Content-Length': Buffer.byteLength(body.toString())
+                }
+            },
+            (resp) => {
+                let data = '';
+                resp.on('data', (chunk) => (data += chunk));
+                resp.on('end', () => {
+                    try {
+                        const json = JSON.parse(data);
+                        resolve({ ok: Boolean(json && json.success), data: json });
+                    } catch {
+                        resolve({ ok: false });
+                    }
+                });
+            }
+        );
+        req.on('error', () => resolve({ ok: false }));
+        req.write(body.toString());
+        req.end();
+    });
+}
+
+app.get('/api/public-config', (req, res) => {
+    res.json({ turnstileSiteKey: process.env.TURNSTILE_SITE_KEY || null });
 });
 
 // --- CONFIGURACIÓN WEBPAY PLUS (TRANSBANK) ---
@@ -232,8 +276,14 @@ app.get('/api/carrito/:cartToken', async (req, res) => {
 
 // 3. Login de usuarios (login.html)
 app.post('/api/login', async (req, res) => {
-    const { email, password, cartToken } = req.body || {};
+    const { email, password, cartToken, turnstileToken } = req.body || {};
     try {
+        const remoteIp = req.headers['cf-connecting-ip'] || req.headers['x-forwarded-for']?.toString().split(',')[0]?.trim() || req.socket?.remoteAddress;
+        const turnstile = await verifyTurnstile(turnstileToken, remoteIp);
+        if (!turnstile.ok) {
+            return res.status(400).json({ error: "Verificación anti-robot fallida" });
+        }
+
         const usuario = await pool.query("SELECT * FROM usuarios WHERE email = $1", [email]);
         
         if (usuario.rows.length === 0) {

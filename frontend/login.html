@@ -26,6 +26,10 @@
                 <input type="password" id="login-pass" placeholder="Tu contraseña" required>
             </div>
 
+            <div id="turnstile-wrap" style="display:none; justify-content:center; margin: 15px 0;">
+                <div id="turnstile-container"></div>
+            </div>
+
             <p id="mensaje-error" class="error-text"></p>
 
             <button type="submit" class="btn-rojo-auth">Entrar</button>
@@ -37,6 +41,7 @@
     </main>
 
     <script src="config.js"></script>
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
     <script>
         const form = document.getElementById('form-login');
         const errorMsg = document.getElementById('mensaje-error');
@@ -47,6 +52,43 @@
             localStorage.setItem('cart_token', cartToken);
         }
 
+        let turnstileWidgetId = null;
+        let turnstileToken = null;
+        let turnstileEnabled = false;
+
+        async function initTurnstile() {
+            const baseUrl = (window.APP_CONFIG && window.APP_CONFIG.API_BASE_URL) ? window.APP_CONFIG.API_BASE_URL : 'http://localhost:3000';
+            let siteKey = null;
+            try {
+                const res = await fetch(`${baseUrl}/api/public-config`);
+                const data = await res.json();
+                siteKey = data && data.turnstileSiteKey ? String(data.turnstileSiteKey) : null;
+            } catch (e) {
+                siteKey = null;
+            }
+            if (!siteKey) return;
+            turnstileEnabled = true;
+            const wrap = document.getElementById('turnstile-wrap');
+            if (wrap) wrap.style.display = 'flex';
+
+            const wait = () => {
+                if (!window.turnstile) {
+                    setTimeout(wait, 150);
+                    return;
+                }
+                if (turnstileWidgetId !== null) return;
+                turnstileWidgetId = window.turnstile.render('#turnstile-container', {
+                    sitekey: siteKey,
+                    callback: (token) => { turnstileToken = token; },
+                    'expired-callback': () => { turnstileToken = null; },
+                    'error-callback': () => { turnstileToken = null; }
+                });
+            };
+            wait();
+        }
+
+        document.addEventListener('DOMContentLoaded', initTurnstile);
+
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
 
@@ -55,6 +97,11 @@
 
             try {
                 const baseUrl = (window.APP_CONFIG && window.APP_CONFIG.API_BASE_URL) ? window.APP_CONFIG.API_BASE_URL : 'http://localhost:3000';
+                if (turnstileEnabled && !turnstileToken) {
+                    errorMsg.style.color = "red";
+                    errorMsg.innerText = "Completa la verificación anti-robot";
+                    return;
+                }
                 try {
                     const carritoLocal = JSON.parse(localStorage.getItem('carrito') || '[]');
                     await fetch(`${baseUrl}/api/carrito/guardar`, {
@@ -69,7 +116,7 @@
                 const respuesta = await fetch(`${baseUrl}/api/login`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, password, cartToken })
+                    body: JSON.stringify({ email, password, cartToken, turnstileToken })
                 });
 
                 const datos = await respuesta.json();
@@ -111,6 +158,10 @@
                 } else {
                     errorMsg.style.color = "red";
                     errorMsg.innerText = datos.error || "Correo o contraseña incorrectos";
+                    if (turnstileEnabled && window.turnstile && turnstileWidgetId !== null) {
+                        try { window.turnstile.reset(turnstileWidgetId); } catch (e) {}
+                        turnstileToken = null;
+                    }
                 }
 
             } catch (error) {
