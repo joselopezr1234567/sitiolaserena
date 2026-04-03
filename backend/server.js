@@ -70,9 +70,18 @@ function getChileBusinessOpenNow() {
     return minutes >= start && minutes <= end;
 }
 
+function normalizarSucursalKey(s) {
+    const v = String(s || '').trim().toLowerCase();
+    const key = v.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '_');
+    if (key === 'laserena' || key === 'la_serena' || key === 'la-serena') return 'la_serena';
+    if (key === 'coquimbo') return 'coquimbo';
+    return key || v;
+}
+
 async function isSucursalOpen(sucursal) {
     try {
-        const r = await pool.query('SELECT cerrado FROM sucursales_config WHERE nombre = $1', [sucursal]);
+        const suc = normalizarSucursalKey(sucursal);
+        const r = await pool.query('SELECT cerrado FROM sucursales_config WHERE nombre = $1', [suc]);
         const cerrado = r.rows[0]?.cerrado === true;
         return !cerrado && getChileBusinessOpenNow();
     } catch {
@@ -520,11 +529,12 @@ app.post('/api/admin/login', async (req, res) => {
 app.post('/api/pedidos', async (req, res) => {
     const { usuario, telefono, sucursal, productos, total } = req.body;
     try {
-        if (!(await isSucursalOpen(sucursal))) {
+        const sucKey = normalizarSucursalKey(sucursal);
+        if (!(await isSucursalOpen(sucKey))) {
             return res.status(403).json({ error: "Estimad@ cliente en este momento nos encontramos cerrado" });
         }
         // Obtener la demora actual configurada para esta sucursal
-        const config = await pool.query("SELECT demora_actual FROM sucursales_config WHERE nombre = $1", [sucursal]);
+        const config = await pool.query("SELECT demora_actual FROM sucursales_config WHERE nombre = $1", [sucKey]);
         const demora = config.rows.length > 0 ? config.rows[0].demora_actual : 30;
 
         // Primero insertamos el pedido en la tabla 'pedidos' incluyendo la demora pactada
@@ -626,8 +636,8 @@ app.get('/api/admin/pedidos', async (req, res) => {
             WHERE estado NOT IN ('completado', 'rechazado', 'pendiente_pago')
         `;
         if (sucursal) {
-            query += " AND sucursal = $1";
-            params.push(sucursal);
+            query += " AND lower(replace(sucursal, ' ', '_')) = lower(replace($1, ' ', '_'))";
+            params.push(String(sucursal));
         }
         query += " ORDER BY fecha DESC";
         const pedidos = await pool.query(query, params);
@@ -653,7 +663,8 @@ app.get('/api/admin/pedidos', async (req, res) => {
 app.get('/api/config/:sucursal', async (req, res) => {
     const { sucursal } = req.params;
     try {
-        const resultado = await pool.query("SELECT * FROM sucursales_config WHERE nombre = $1", [sucursal]);
+        const sucKey = normalizarSucursalKey(sucursal);
+        const resultado = await pool.query("SELECT * FROM sucursales_config WHERE nombre = $1", [sucKey]);
         if (resultado.rows.length === 0) {
             return res.status(404).json({ error: "Sucursal no encontrada" });
         }
@@ -667,16 +678,17 @@ app.put('/api/config/:sucursal', async (req, res) => {
     const { sucursal } = req.params;
     const { demora_actual, cerrado } = req.body || {};
     try {
-        const cur = await pool.query("SELECT demora_actual, cerrado FROM sucursales_config WHERE nombre = $1", [sucursal]);
+        const sucKey = normalizarSucursalKey(sucursal);
+        const cur = await pool.query("SELECT demora_actual, cerrado FROM sucursales_config WHERE nombre = $1", [sucKey]);
         if (cur.rows.length === 0) {
             const dem = typeof demora_actual === 'number' ? demora_actual : 30;
             const cer = typeof cerrado === 'boolean' ? cerrado : false;
-            await pool.query("INSERT INTO sucursales_config (nombre, demora_actual, cerrado) VALUES ($1, $2, $3)", [sucursal, dem, cer]);
+            await pool.query("INSERT INTO sucursales_config (nombre, demora_actual, cerrado) VALUES ($1, $2, $3)", [sucKey, dem, cer]);
             return res.json({ mensaje: "Configuración creada", demora_actual: dem, cerrado: cer });
         }
         const dem = typeof demora_actual === 'number' ? demora_actual : cur.rows[0].demora_actual;
         const cer = typeof cerrado === 'boolean' ? cerrado : cur.rows[0].cerrado;
-        await pool.query("UPDATE sucursales_config SET demora_actual = $1, cerrado = $2 WHERE nombre = $3", [dem, cer, sucursal]);
+        await pool.query("UPDATE sucursales_config SET demora_actual = $1, cerrado = $2 WHERE nombre = $3", [dem, cer, sucKey]);
         res.json({ mensaje: "Configuración actualizada", demora_actual: dem, cerrado: cer });
     } catch (err) {
         res.status(500).json({ error: "Error al actualizar configuración" });

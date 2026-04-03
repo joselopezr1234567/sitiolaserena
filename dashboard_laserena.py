@@ -35,6 +35,10 @@ class DashboardPizzeria:
         self.running = True
         self.print_status_var = tk.StringVar(value="Impresión: -")
         self.print_status_color = "#ffffff"
+        self._auth_warned = False
+        if not ADMIN_API_TOKEN:
+            self._auth_warned = True
+            messagebox.showwarning("Token faltante", "Falta ADMIN_API_TOKEN. Este dashboard no podrá ver pedidos hasta configurarlo.")
         
         # Cola de impresión
         self.print_queue = queue.Queue()
@@ -167,6 +171,9 @@ class DashboardPizzeria:
                                 self.pedidos_impresos.add(p['id'])
                     
                     self.root.after(0, self.update_table, pedidos)
+                elif response.status_code == 401 and not self._auth_warned:
+                    self._auth_warned = True
+                    self.root.after(0, lambda: messagebox.showerror("No autorizado", "Token inválido o faltante. Revisa ADMIN_API_TOKEN en este PC."))
             except Exception as e:
                 print(f"Error al obtener pedidos: {e}")
             time.sleep(5)
