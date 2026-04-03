@@ -231,6 +231,21 @@
                 opciones.querySelectorAll('input').forEach(i => i.onchange = () => calcAlGusto(baseProd.precio));
                 if (btnAdd) btnAdd.disabled = false;
             }
+            else if (tipo === 'acompañamientos') {
+                titulo.innerText = "Acompañamientos";
+                const items = productosDB.filter(p => p.categoria === 'acompañamientos');
+                precioTotal.innerText = `$0`;
+                items.forEach(i => {
+                    opciones.innerHTML += `
+                        <div class="item-extra">
+                            <label><input type="checkbox" class="acompanamiento-check" value="${i.precio}" data-name="${i.nombre}"> ${i.nombre}</label>
+                            <span>+$${i.precio}</span>
+                        </div>
+                    `;
+                });
+                opciones.querySelectorAll('.acompanamiento-check').forEach(i => i.onchange = () => calcAcompanamientos());
+                if (btnAdd) btnAdd.disabled = false;
+            }
             else {
                 const tipoNorm = normalizarCategoria(tipo);
                 const cat = tipoNorm === 'pizzas-familiares' ? 'pizzas' : tipoNorm;
@@ -322,6 +337,11 @@
         function calcAlGusto(base) {
             let t = base;
             document.querySelectorAll('.extra-check:checked').forEach(c => t += parseInt(c.value));
+            document.getElementById('precio-total').innerText = "$" + t.toLocaleString();
+        }
+        function calcAcompanamientos() {
+            let t = 0;
+            document.querySelectorAll('.acompanamiento-check:checked').forEach(c => t += parseInt(c.value));
             document.getElementById('precio-total').innerText = "$" + t.toLocaleString();
         }
 
