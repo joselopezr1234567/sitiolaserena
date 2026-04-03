@@ -553,7 +553,10 @@ app.post('/api/pedidos', async (req, res) => {
 app.get('/api/pedidos/:id', async (req, res) => {
     const { id } = req.params;
     try {
-        const pedido = await pool.query("SELECT * FROM pedidos WHERE id = $1", [id]);
+        const pedido = await pool.query(
+            "SELECT *, EXTRACT(EPOCH FROM fecha) * 1000 AS fecha_ms, to_char(fecha,'YYYY-MM-DD HH24:MI:SS') AS fecha_local FROM pedidos WHERE id = $1",
+            [id]
+        );
         if (pedido.rows.length === 0) {
             return res.status(404).json({ error: "Pedido no encontrado" });
         }
@@ -561,7 +564,7 @@ app.get('/api/pedidos/:id', async (req, res) => {
         const detalles = await pool.query("SELECT * FROM detalle_pedidos WHERE pedido_id = $1", [id]);
         
         res.json({
-            pedido: pedido.rows[0],
+            pedido: { ...pedido.rows[0], fecha: pedido.rows[0].fecha_local },
             detalles: detalles.rows
         });
     } catch (err) {
@@ -576,7 +579,7 @@ app.get('/api/usuarios/:nombre/pedidos', async (req, res) => {
     try {
         // Obtenemos los pedidos (ordenados por fecha descendente)
         const pedidos = await pool.query(
-            "SELECT * FROM pedidos WHERE usuario_nombre = $1 ORDER BY fecha DESC", 
+            "SELECT *, EXTRACT(EPOCH FROM fecha) * 1000 AS fecha_ms, to_char(fecha,'YYYY-MM-DD HH24:MI:SS') AS fecha_local FROM pedidos WHERE usuario_nombre = $1 ORDER BY fecha DESC",
             [nombre]
         );
         
@@ -585,6 +588,7 @@ app.get('/api/usuarios/:nombre/pedidos', async (req, res) => {
             const detalles = await pool.query("SELECT * FROM detalle_pedidos WHERE pedido_id = $1", [p.id]);
             return {
                 ...p,
+                fecha: p.fecha_local,
                 productos: detalles.rows
             };
         }));

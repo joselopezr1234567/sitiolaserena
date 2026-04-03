@@ -101,11 +101,13 @@
                             statusColor = "#ffffff";
                         }
 
-                        // Cálculo de hora estimada
+                        const fechaLocal = pedido.fecha_local || pedido.fecha || "";
+                        const fechaMs = typeof pedido.fecha_ms === 'number' ? pedido.fecha_ms : (pedido.fecha_ms ? parseInt(String(pedido.fecha_ms), 10) : NaN);
+
                         let horaEstimadaHtml = "";
                         if (pedido.demora_estimada && pedido.estado !== "listo") {
-                            const fechaPedido = new Date(pedido.fecha);
-                            const fechaEstimada = new Date(fechaPedido.getTime() + pedido.demora_estimada * 60000);
+                            let baseMs = !Number.isNaN(fechaMs) ? fechaMs : new Date(pedido.fecha).getTime();
+                            const fechaEstimada = new Date(baseMs + pedido.demora_estimada * 60000);
                             const horaEstimada = fmtHoraChile.format(fechaEstimada);
                             horaEstimadaHtml = `
                                 <p style="color: #ffffff; font-weight: bold; margin-top: 10px;">
@@ -119,7 +121,7 @@
                                 <div style="border-bottom: 1px solid #333; padding-bottom: 10px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: flex-start;">
                                     <div>
                                         <h2 style="color: #ffffff; margin: 0; font-size: 1.4rem;">Pedido #${pedido.id}</h2>
-                                        <p style="color: #ffffff; font-size: 0.8rem; margin: 5px 0;">Fecha: ${fmtFechaHoraChile.format(new Date(pedido.fecha))}</p>
+                                        <p style="color: #ffffff; font-size: 0.8rem; margin: 5px 0;">Fecha: ${fechaLocal || fmtFechaHoraChile.format(new Date(pedido.fecha))}</p>
                                         ${horaEstimadaHtml}
                                     </div>
                                     <div style="text-align: right;">
