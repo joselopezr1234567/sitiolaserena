@@ -70,6 +70,16 @@ function getChileBusinessOpenNow() {
     return minutes >= start && minutes <= end;
 }
 
+async function isSucursalOpen(sucursal) {
+    try {
+        const r = await pool.query('SELECT cerrado FROM sucursales_config WHERE nombre = $1', [sucursal]);
+        const cerrado = r.rows[0]?.cerrado === true;
+        return !cerrado && getChileBusinessOpenNow();
+    } catch {
+        return getChileBusinessOpenNow();
+    }
+}
+
 function requireOpenHours(req, res, next) {
     if (!getChileBusinessOpenNow()) {
         return res.status(403).json({ error: "Cerrado" });
@@ -302,6 +312,32 @@ async function initAdminBootstrap() {
 
 initAdminBootstrap();
 
+async function initSucursalConfig() {
+    try {
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS sucursales_config (
+                nombre TEXT PRIMARY KEY,
+                demora_actual INTEGER NOT NULL DEFAULT 30,
+                cerrado BOOLEAN NOT NULL DEFAULT FALSE
+            )
+        `);
+        await pool.query(`ALTER TABLE sucursales_config ADD COLUMN IF NOT EXISTS cerrado BOOLEAN NOT NULL DEFAULT FALSE`);
+        const rows = await pool.query(`SELECT nombre FROM sucursales_config`);
+        const existing = new Set(rows.rows.map(r => (r.nombre || '').toLowerCase()));
+        if (!existing.has('la_serena')) {
+            await pool.query(`INSERT INTO sucursales_config (nombre, demora_actual, cerrado) VALUES ($1, 30, FALSE)`, ['la_serena']);
+        }
+        if (!existing.has('coquimbo')) {
+            await pool.query(`INSERT INTO sucursales_config (nombre, demora_actual, cerrado) VALUES ($1, 30, FALSE)`, ['coquimbo']);
+        }
+        console.log('✅ Sucursales_config OK');
+    } catch (e) {
+        console.error('Error inicializando sucursales_config:', e.message);
+    }
+}
+
+initSucursalConfig();
+
 // --- RUTAS DE PRODUCTOS (MENÚS) ---
 
 // 1. Obtener productos por sucursal (Para menulaserena.html y menucoquimbo.html)
@@ -484,7 +520,7 @@ app.post('/api/admin/login', async (req, res) => {
 app.post('/api/pedidos', async (req, res) => {
     const { usuario, telefono, sucursal, productos, total } = req.body;
     try {
-        if (!getChileBusinessOpenNow()) {
+        if (!(await isSucursalOpen(sucursal))) {
             return res.status(403).json({ error: "Estimad@ cliente en este momento nos encontramos cerrado" });
         }
         // Obtener la demora actual configurada para esta sucursal
@@ -625,13 +661,19 @@ app.get('/api/config/:sucursal', async (req, res) => {
 
 app.put('/api/config/:sucursal', async (req, res) => {
     const { sucursal } = req.params;
-    const { demora_actual } = req.body;
+    const { demora_actual, cerrado } = req.body || {};
     try {
-        await pool.query(
-            "UPDATE sucursales_config SET demora_actual = $1 WHERE nombre = $2",
-            [demora_actual, sucursal]
-        );
-        res.json({ mensaje: "Configuración actualizada" });
+        const cur = await pool.query("SELECT demora_actual, cerrado FROM sucursales_config WHERE nombre = $1", [sucursal]);
+        if (cur.rows.length === 0) {
+            const dem = typeof demora_actual === 'number' ? demora_actual : 30;
+            const cer = typeof cerrado === 'boolean' ? cerrado : false;
+            await pool.query("INSERT INTO sucursales_config (nombre, demora_actual, cerrado) VALUES ($1, $2, $3)", [sucursal, dem, cer]);
+            return res.json({ mensaje: "Configuración creada", demora_actual: dem, cerrado: cer });
+        }
+        const dem = typeof demora_actual === 'number' ? demora_actual : cur.rows[0].demora_actual;
+        const cer = typeof cerrado === 'boolean' ? cerrado : cur.rows[0].cerrado;
+        await pool.query("UPDATE sucursales_config SET demora_actual = $1, cerrado = $2 WHERE nombre = $3", [dem, cer, sucursal]);
+        res.json({ mensaje: "Configuración actualizada", demora_actual: dem, cerrado: cer });
     } catch (err) {
         res.status(500).json({ error: "Error al actualizar configuración" });
     }
@@ -867,9 +909,16 @@ app.put('/api/admin/productos/:id/disponibilidad', async (req, res) => {
 app.post('/api/pagos/crear', async (req, res) => {
     const { monto, ordenId, returnUrl } = req.body || {};
     try {
-        if (!getChileBusinessOpenNow()) {
-            return res.status(403).json({ error: "Estimad@ cliente en este momento nos encontramos cerrado" });
+        let sucursalForOpen = null;
+        const pedidoId = parseInt(String(ordenId || ''), 10);
+        if (!Number.isNaN(pedidoId)) {
+            try {
+                const pr = await pool.query('SELECT sucursal FROM pedidos WHERE id = $1', [pedidoId]);
+                sucursalForOpen = pr.rows[0]?.sucursal || null;
+            } catch {}
         }
+        const allow = sucursalForOpen ? (await isSucursalOpen(sucursalForOpen)) : getChileBusinessOpenNow();
+        if (!allow) return res.status(403).json({ error: "Estimad@ cliente en este momento nos encontramos cerrado" });
         const buyOrder = String(ordenId || `ORD-${Date.now()}`);
         const sessionId = `SID-${Math.floor(Math.random() * 1e9)}`;
         const amount = Math.max(1, parseInt(monto, 10) || 0);

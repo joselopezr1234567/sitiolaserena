@@ -57,8 +57,24 @@ window.APP_CONFIG = {
         return overlay;
     }
 
-    function refresh() {
-        const { open } = isOpenNow();
+    async function refresh() {
+        let open = isOpenNow().open;
+        try {
+            const baseUrl = (window.APP_CONFIG && window.APP_CONFIG.API_BASE_URL) ? window.APP_CONFIG.API_BASE_URL : 'http://localhost:3000';
+            const path = (location.pathname || '').toLowerCase();
+            let suc = null;
+            if (path.includes('menulaserena')) suc = 'la_serena';
+            else if (path.includes('menucoquimbo')) suc = 'coquimbo';
+            if (suc) {
+                const res = await fetch(`${baseUrl}/api/config/${suc}`);
+                if (res.ok) {
+                    const cfg = await res.json();
+                    if (cfg && cfg.cerrado === true) {
+                        open = false;
+                    }
+                }
+            }
+        } catch {}
         window.APP_OPEN = open;
         const overlay = ensureOverlay();
         overlay.style.display = open ? 'none' : 'flex';

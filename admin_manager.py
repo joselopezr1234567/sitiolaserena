@@ -133,6 +133,7 @@ class AdminManager:
         tk.Button(menu_frame, text="🍕 PIZZERÍA LA SERENA", command=lambda: self.abrir_gestion_sucursal("la_serena"), bg="#FF0000", **btn_style).pack(pady=15)
         tk.Button(menu_frame, text="🍕 PIZZERÍA COQUIMBO", command=lambda: self.abrir_gestion_sucursal("coquimbo"), bg="#FF0000", **btn_style).pack(pady=15)
         tk.Button(menu_frame, text="👥 GESTIONAR USUARIOS", command=self.abrir_gestion_usuarios, bg="#555", **btn_style).pack(pady=15)
+        tk.Button(menu_frame, text="⏱️ CIERRE DE LOCALES", command=self.abrir_cierre_locales, bg="#333", **btn_style).pack(pady=15)
         
         tk.Button(self.root, text="CERRAR SISTEMA", command=self.mostrar_login, bg="#333", fg="white", font=("Arial", 10, "bold")).pack(side=tk.BOTTOM, pady=20)
 
@@ -505,6 +506,64 @@ class AdminManager:
             requests.delete(f"{API_URL}/admin/usuarios/{uid}", headers=self._headers())
             self.refrescar_usuarios()
 
+    def abrir_cierre_locales(self):
+        self.limpiar_pantalla()
+        header = tk.Frame(self.root, bg="#333", height=70)
+        header.pack(fill=tk.X)
+        tk.Button(header, text="ATRÁS", command=self.mostrar_menu_principal, bg="black", fg="white", font=("Arial", 12, "bold"), width=10).pack(side=tk.LEFT, padx=20, pady=15)
+        tk.Label(header, text="CIERRE DE LOCALES", fg="white", bg="#333", font=("Arial", 20, "bold")).pack(side=tk.LEFT, padx=100)
+
+        content = tk.Frame(self.root, bg="#1a1a1a")
+        content.pack(fill=tk.BOTH, expand=True, padx=50, pady=20)
+
+        filas = [
+            ("La Serena", "la_serena"),
+            ("Coquimbo", "coquimbo"),
+        ]
+        self.cierre_vars = {}
+        for nombre, slug in filas:
+            fila = tk.Frame(content, bg="#222", padx=20, pady=15)
+            fila.pack(fill=tk.X, pady=10)
+            tk.Label(fila, text=nombre, fg="#ffffff", bg="#222", font=("Arial", 16, "bold")).pack(side=tk.LEFT)
+            var = tk.StringVar(value="desconocido")
+            self.cierre_vars[slug] = var
+            estado_lbl = tk.Label(fila, textvariable=var, fg="#FFD700", bg="#222", font=("Arial", 14, "bold"))
+            estado_lbl.pack(side=tk.LEFT, padx=20)
+            def make_toggle(s):
+                return lambda: self.toggle_cierre(s)
+            tk.Button(fila, text="Cambiar estado", command=make_toggle(slug), bg="#FF0000", fg="white", font=("Arial", 12, "bold")).pack(side=tk.RIGHT)
+
+        tk.Button(content, text="Actualizar estados", command=self.cargar_estados_cierre, bg="#00FF00", fg="black", font=("Arial", 12, "bold")).pack(pady=10)
+        self.cargar_estados_cierre()
+
+    def cargar_estados_cierre(self):
+        try:
+            for slug in ["la_serena", "coquimbo"]:
+                r = requests.get(f"{API_URL}/config/{slug}", headers=self._headers(), timeout=10)
+                if r.status_code == 200:
+                    dat = r.json()
+                    self.cierre_vars[slug].set("abierto" if (dat.get("cerrado") is not True) else "cerrado")
+                else:
+                    self.cierre_vars[slug].set("error")
+        except Exception:
+            for slug in ["la_serena", "coquimbo"]:
+                self.cierre_vars[slug].set("error")
+
+    def toggle_cierre(self, sucursal_slug):
+        try:
+            getr = requests.get(f"{API_URL}/config/{sucursal_slug}", headers=self._headers(), timeout=10)
+            cur_cerrado = False
+            if getr.status_code == 200:
+                cur_cerrado = bool(getr.json().get("cerrado"))
+            body = {"cerrado": (not cur_cerrado)}
+            upr = requests.put(f"{API_URL}/config/{sucursal_slug}", json=body, headers=self._headers(), timeout=10)
+            if upr.status_code == 200:
+                self.cargar_estados_cierre()
+                messagebox.showinfo("Listo", f"{sucursal_slug.replace('_',' ').title()}: estado actualizado")
+            else:
+                messagebox.showerror("Error", "No se pudo actualizar estado")
+        except Exception:
+            messagebox.showerror("Error", "No hay conexión con el servidor")
 if __name__ == "__main__":
     root = tk.Tk()
     app = AdminManager(root)
