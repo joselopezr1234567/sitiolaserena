@@ -160,7 +160,7 @@ class AdminManager:
         cat_frame.pack(fill=tk.X)
 
         self.cb_filtro_cat = ttk.Combobox(cat_frame, font=("Arial", 16), state="readonly", width=20)
-        self.cb_filtro_cat['values'] = ["PIZZAS", "BEBIDAS", "INGREDIENTES", "PROMOCIONES", "BASE", "ACOMPAÑAMIENTOS"]
+        self.cb_filtro_cat['values'] = ["PIZZAS", "MITADES", "BEBIDAS", "INGREDIENTES", "PROMOCIONES", "BASE", "ACOMPAÑAMIENTOS"]
         self.cb_filtro_cat.set("PIZZAS")
         self.cb_filtro_cat.pack(side=tk.LEFT, padx=10)
         self.cb_filtro_cat.bind("<<ComboboxSelected>>", lambda e: self.refrescar_lista_combo())
@@ -240,6 +240,33 @@ class AdminManager:
                 
                 target_suc = self.sucursal_activa.strip().lower()
                 target_cat = self.cb_filtro_cat.get().strip().lower()
+                if target_cat == "mitades":
+                    self.combo_productos.pack_forget()
+                    self.btn_nuevo.pack_forget()
+                    self.var_id.set("")
+                    self.var_nombre.set("")
+                    self.var_precio.set("")
+                    self.var_cat.set("pizzas")
+                    self.var_disp.set(True)
+                    self.txt_desc.delete("1.0", tk.END)
+                    self.lbl_nombre.pack_forget()
+                    self.ent_nombre.pack_forget()
+                    self.lbl_cat.pack_forget()
+                    self.cb_cat.pack_forget()
+                    self.lbl_desc.pack_forget()
+                    self.txt_desc.pack_forget()
+                    self.chk_disp.pack_forget()
+                    self.btn_borrar.pack_forget()
+                    self.lbl_combo2.config(text="PIZZAS DISPONIBLES PARA MITADES:")
+                    self.lbl_combo2.pack(anchor=tk.W, pady=(0, 5))
+                    self.list_combo2.pack(pady=(0, 15))
+                    self._cargar_pizzas_mitades()
+                    self.form_frame.pack(fill=tk.BOTH, expand=True, pady=30)
+                else:
+                    if not self.combo_productos.winfo_ismapped():
+                        self.combo_productos.pack(side=tk.LEFT, padx=10)
+                    if not self.btn_nuevo.winfo_ismapped():
+                        self.btn_nuevo.pack(side=tk.LEFT, padx=10)
                 
                 nuevos_productos = []
                 for p in todos:
@@ -255,15 +282,17 @@ class AdminManager:
                         nuevos_productos.append(p)
                 
                 # Actualizar lista siempre para reflejar el cambio de categoría
-                self.productos_lista = nuevos_productos
-                nombres = sorted([p['nombre'] for p in self.productos_lista])
-                self.combo_productos['values'] = nombres
+                if target_cat != "mitades":
+                    self.productos_lista = nuevos_productos
+                    nombres = sorted([p['nombre'] for p in self.productos_lista])
+                    self.combo_productos['values'] = nombres
                 
                 # Resetear selección si cambiamos de categoría y el producto actual no pertenece
-                actual_sel = self.combo_productos.get()
-                if not self.modo_nuevo and actual_sel not in nombres:
-                    self.combo_productos.set(f"--- Elige una {self.cb_filtro_cat.get()} ---")
-                    self.form_frame.pack_forget()
+                if target_cat != "mitades":
+                    actual_sel = self.combo_productos.get()
+                    if not self.modo_nuevo and actual_sel not in nombres:
+                        self.combo_productos.set(f"--- Elige una {self.cb_filtro_cat.get()} ---")
+                        self.form_frame.pack_forget()
                 
             # AUTO-RECARGA cada 10 segundos
             self.after_id = self.root.after(10000, self.refrescar_lista_combo)
@@ -311,6 +340,44 @@ class AdminManager:
                 "descripcion": p.get("descripcion") or "",
                 "disponible": bool(p.get("disponible", True)),
                 "combo2_disponible": combo2_disp,
+            }
+            try:
+                requests.put(f"{API_URL}/admin/productos/{p.get('id')}", json=payload, timeout=10, headers=self._headers())
+            except Exception:
+                pass
+
+    def _cargar_pizzas_mitades(self):
+        self.list_combo2.delete(0, tk.END)
+        pizzas = []
+        for p in self.todos_productos:
+            if not self._match_sucursal(str(p.get('sucursal', '')), self.sucursal_activa):
+                continue
+            cat = str(p.get('categoria', '')).strip().lower()
+            if cat not in ("pizzas", "pizzas-familiares"):
+                continue
+            pizzas.append(p)
+        pizzas.sort(key=lambda x: str(x.get('nombre', '')).upper())
+        self._mitades_pizzas = pizzas
+        for p in pizzas:
+            self.list_combo2.insert(tk.END, str(p.get('nombre', '')).upper())
+        for idx, p in enumerate(pizzas):
+            if p.get('mitades_disponible', True):
+                self.list_combo2.selection_set(idx)
+
+    def _guardar_pizzas_mitades(self):
+        if not hasattr(self, "_mitades_pizzas"):
+            return
+        seleccion = set(self.list_combo2.curselection())
+        for idx, p in enumerate(self._mitades_pizzas):
+            mitades_disp = idx in seleccion
+            payload = {
+                "nombre": str(p.get("nombre", "")).upper(),
+                "precio": int(p.get("precio", 0) or 0),
+                "categoria": str(p.get("categoria", "")).strip().lower(),
+                "sucursal": p.get("sucursal", self.sucursal_activa),
+                "descripcion": p.get("descripcion") or "",
+                "disponible": bool(p.get("disponible", True)),
+                "mitades_disponible": mitades_disp,
             }
             try:
                 requests.put(f"{API_URL}/admin/productos/{p.get('id')}", json=payload, timeout=10, headers=self._headers())
@@ -403,6 +470,10 @@ class AdminManager:
         self.form_frame.pack(fill=tk.BOTH, expand=True, pady=30)
 
     def guardar_producto(self):
+        if self.cb_filtro_cat.get().strip().lower() == "mitades":
+            self._guardar_pizzas_mitades()
+            messagebox.showinfo("Listo", "Mitades actualizado")
+            return
         if not self.var_nombre.get() or not self.var_precio.get():
             messagebox.showwarning("Atención", "Escribe el NOMBRE y el PRECIO")
             return

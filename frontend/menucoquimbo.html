@@ -198,15 +198,16 @@
             } 
             else if (tipo === 'mitades') {
                 titulo.innerText = "Pizza por Mitades";
+                const pizzasMitades = pizzas.filter(p => p.mitades_disponible !== false);
                 opciones.innerHTML = `
                     <div class="campo-pedido">
                         <label>Primera Mitad:</label>
-                        <select id="m1" onchange="calcMitades()">${pizzas.map(p => `<option value="${p.precio/2}" data-desc="${p.descripcion || ''}">${p.nombre} (+$${(p.precio/2).toLocaleString()})</option>`).join('')}</select>
+                        <select id="m1" onchange="calcMitades()">${pizzasMitades.map(p => `<option value="${p.precio/2}" data-desc="${p.descripcion || ''}">${p.nombre} (+$${(p.precio/2).toLocaleString()})</option>`).join('')}</select>
                         <div id="desc-m1" class="desc-pizzas"></div>
                     </div>
                     <div class="campo-pedido">
                         <label>Segunda Mitad:</label>
-                        <select id="m2" onchange="calcMitades()">${pizzas.map(p => `<option value="${p.precio/2}" data-desc="${p.descripcion || ''}">${p.nombre} (+$${(p.precio/2).toLocaleString()})</option>`).join('')}</select>
+                        <select id="m2" onchange="calcMitades()">${pizzasMitades.map(p => `<option value="${p.precio/2}" data-desc="${p.descripcion || ''}">${p.nombre} (+$${(p.precio/2).toLocaleString()})</option>`).join('')}</select>
                         <div id="desc-m2" class="desc-pizzas"></div>
                     </div>
                 `;
