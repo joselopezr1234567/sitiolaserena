@@ -64,6 +64,56 @@ app.get('/api/admin/ping', (req, res) => {
     res.json({ ok: true });
 });
 
+// Borrar TODOS los pedidos (y sus detalles)
+app.post('/api/admin/pedidos/reset', async (req, res) => {
+    try {
+        await pool.query("BEGIN");
+        await pool.query("TRUNCATE TABLE detalle_pedidos, pedidos RESTART IDENTITY CASCADE");
+        await pool.query("COMMIT");
+        return res.json({ ok: true });
+    } catch (err) {
+        try { await pool.query("ROLLBACK"); } catch {}
+        console.error("Error reseteando pedidos:", err?.message || err);
+        return res.status(500).json({ error: "No se pudo borrar pedidos" });
+    }
+});
+
+// Borrar un pedido específico por ID
+app.delete('/api/admin/pedidos/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        await pool.query("BEGIN");
+        await pool.query("DELETE FROM detalle_pedidos WHERE pedido_id = $1", [id]);
+        const r = await pool.query("DELETE FROM pedidos WHERE id = $1", [id]);
+        await pool.query("COMMIT");
+        if (r.rowCount === 0) return res.status(404).json({ error: "Pedido no encontrado" });
+        return res.json({ ok: true, id: Number(id) });
+    } catch (err) {
+        try { await pool.query("ROLLBACK"); } catch {}
+        return res.status(500).json({ error: "No se pudo borrar el pedido" });
+    }
+});
+
+// Borrar pedidos de un usuario por nombre
+app.delete('/api/admin/pedidos/by-usuario', async (req, res) => {
+    const nombre = (req.query.nombre || '').trim();
+    if (!nombre) return res.status(400).json({ error: "Falta parámetro nombre" });
+    try {
+        await pool.query("BEGIN");
+        const idsRes = await pool.query("SELECT id FROM pedidos WHERE usuario_nombre = $1", [nombre]);
+        const ids = idsRes.rows.map(r => r.id);
+        for (const pid of ids) {
+            await pool.query("DELETE FROM detalle_pedidos WHERE pedido_id = $1", [pid]);
+        }
+        const r = await pool.query("DELETE FROM pedidos WHERE usuario_nombre = $1", [nombre]);
+        await pool.query("COMMIT");
+        return res.json({ ok: true, borrados: r.rowCount });
+    } catch (err) {
+        try { await pool.query("ROLLBACK"); } catch {}
+        return res.status(500).json({ error: "No se pudo borrar pedidos del usuario" });
+    }
+});
+
 app.get('/', (req, res) => {
     res.type('text/plain').send('API sitiolaserena OK. Prueba /api/health');
 });
