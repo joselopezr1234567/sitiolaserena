@@ -50,6 +50,33 @@ function safeEqualString(a, b) {
     }
 }
 
+function getChileBusinessOpenNow() {
+    const fmt = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'America/Santiago',
+        weekday: 'short',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+    });
+    const parts = fmt.formatToParts(new Date());
+    const out = {};
+    for (const p of parts) out[p.type] = p.value;
+    const weekday = out.weekday;
+    const hour = parseInt(out.hour, 10);
+    const minute = parseInt(out.minute, 10);
+    const minutes = hour * 60 + minute;
+    const start = 13 * 60 + 30;
+    const end = (weekday === 'Fri' || weekday === 'Sat') ? (23 * 60 + 40) : (22 * 60 + 55);
+    return minutes >= start && minutes <= end;
+}
+
+function requireOpenHours(req, res, next) {
+    if (!getChileBusinessOpenNow()) {
+        return res.status(403).json({ error: "Cerrado" });
+    }
+    return next();
+}
+
 app.use('/api/admin', (req, res, next) => {
     const expected = String(process.env.ADMIN_API_TOKEN || '');
     if (!expected) return next();
@@ -457,6 +484,9 @@ app.post('/api/admin/login', async (req, res) => {
 app.post('/api/pedidos', async (req, res) => {
     const { usuario, telefono, sucursal, productos, total } = req.body;
     try {
+        if (!getChileBusinessOpenNow()) {
+            return res.status(403).json({ error: "Estimad@ cliente en este momento nos encontramos cerrado" });
+        }
         // Obtener la demora actual configurada para esta sucursal
         const config = await pool.query("SELECT demora_actual FROM sucursales_config WHERE nombre = $1", [sucursal]);
         const demora = config.rows.length > 0 ? config.rows[0].demora_actual : 30;
@@ -837,6 +867,9 @@ app.put('/api/admin/productos/:id/disponibilidad', async (req, res) => {
 app.post('/api/pagos/crear', async (req, res) => {
     const { monto, ordenId, returnUrl } = req.body || {};
     try {
+        if (!getChileBusinessOpenNow()) {
+            return res.status(403).json({ error: "Estimad@ cliente en este momento nos encontramos cerrado" });
+        }
         const buyOrder = String(ordenId || `ORD-${Date.now()}`);
         const sessionId = `SID-${Math.floor(Math.random() * 1e9)}`;
         const amount = Math.max(1, parseInt(monto, 10) || 0);
