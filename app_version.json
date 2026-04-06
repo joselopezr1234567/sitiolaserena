@@ -1,0 +1,14 @@
+{
+  "version": "2026.04.06.2",
+  "apps": {
+    "admin_manager.py": {
+      "url": "https://raw.githubusercontent.com/joselopezr1234567/sitiolaserena/main/admin_manager.py"
+    },
+    "dashboard_laserena.py": {
+      "url": "https://raw.githubusercontent.com/joselopezr1234567/sitiolaserena/main/dashboard_laserena.py"
+    },
+    "dashboard_coquimbo.py": {
+      "url": "https://raw.githubusercontent.com/joselopezr1234567/sitiolaserena/main/dashboard_coquimbo.py"
+    }
+  }
+}

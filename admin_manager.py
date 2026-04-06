@@ -2,9 +2,64 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 import requests
 import os
+import json
+import threading
+import sys
+import subprocess
+import time
 
 API_URL = os.environ.get("API_URL", "https://sitiolaserena.onrender.com/api")
 ADMIN_API_TOKEN = os.environ.get("ADMIN_API_TOKEN", "")
+APP_VERSION = "2026.04.06.2"
+UPDATE_MANIFEST_URL = "https://raw.githubusercontent.com/joselopezr1234567/sitiolaserena/main/app_version.json"
+
+def _parse_version(v: str):
+    parts = []
+    for p in str(v or "").replace("-", ".").split("."):
+        if p.isdigit():
+            parts.append(int(p))
+        else:
+            n = ""
+            for ch in p:
+                if ch.isdigit():
+                    n += ch
+                else:
+                    break
+            if n:
+                parts.append(int(n))
+    return tuple(parts)
+
+def _is_newer(remote: str, local: str):
+    return _parse_version(remote) > _parse_version(local)
+
+def _write_text(path: str, content: str):
+    with open(path, "w", encoding="utf-8", newline="\n") as f:
+        f.write(content)
+
+def _run_update_helper(python_exe: str, target_path: str, new_path: str, argv_tail):
+    helper_path = os.path.join(os.path.dirname(target_path), f"._update_helper_{int(time.time())}.py")
+    helper_code = r'''
+import os, sys, time, subprocess
+python_exe = sys.argv[1]
+target_path = sys.argv[2]
+new_path = sys.argv[3]
+argv_tail = sys.argv[4:]
+ok = False
+for _ in range(120):
+    try:
+        os.replace(new_path, target_path)
+        ok = True
+        break
+    except Exception:
+        time.sleep(0.5)
+if ok:
+    subprocess.Popen([python_exe, target_path, *argv_tail], close_fds=False)
+'''
+    _write_text(helper_path, helper_code.strip() + "\n")
+    try:
+        subprocess.Popen([python_exe, helper_path, python_exe, target_path, new_path, *argv_tail], close_fds=False)
+    except Exception:
+        pass
 
 class AdminManager:
     def __init__(self, root):
@@ -24,6 +79,8 @@ class AdminManager:
         self.todos_productos = []
         self.after_id = None
         self.modo_nuevo = False
+        self._skip_update_version = None
+        self._start_auto_update_check()
         self.mostrar_login()
 
     def limpiar_pantalla(self):
@@ -92,6 +149,73 @@ class AdminManager:
         self.ent_pass.pack(pady=10)
 
         tk.Button(login_frame, text="INGRESAR AHORA", command=self.login, bg="#00FF00", fg="black", font=("Arial", 14, "bold"), width=20, height=2, cursor="hand2").pack(pady=30)
+
+    def _start_auto_update_check(self):
+        def worker():
+            try:
+                url = UPDATE_MANIFEST_URL + "?t=" + str(int(time.time()))
+                r = requests.get(url, timeout=8)
+                if r.status_code != 200:
+                    return
+                data = r.json()
+                remote_version = str(data.get("version") or "")
+                if not remote_version:
+                    return
+                if not _is_newer(remote_version, APP_VERSION):
+                    return
+                app_key = os.path.basename(__file__)
+                app_info = (data.get("apps") or {}).get(app_key) or {}
+                file_url = str(app_info.get("url") or "")
+                if not file_url:
+                    return
+                self.root.after(0, lambda: self._show_update_window(remote_version, file_url))
+            except Exception:
+                return
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _show_update_window(self, remote_version: str, file_url: str):
+        win = tk.Toplevel(self.root)
+        win.title("Actualizar versión")
+        win.configure(bg="#1a1a1a")
+        win.geometry("520x240")
+        win.grab_set()
+
+        tk.Label(win, text="Hay una nueva versión disponible", fg="#ffffff", bg="#1a1a1a", font=("Arial", 16, "bold")).pack(pady=(20, 10))
+        tk.Label(win, text=f"Versión instalada: {APP_VERSION}", fg="#bbbbbb", bg="#1a1a1a", font=("Arial", 12)).pack()
+        tk.Label(win, text=f"Nueva versión: {remote_version}", fg="#FFD700", bg="#1a1a1a", font=("Arial", 12, "bold")).pack(pady=(0, 10))
+
+        status = tk.StringVar(value="")
+        tk.Label(win, textvariable=status, fg="#ffffff", bg="#1a1a1a", font=("Arial", 11)).pack(pady=(10, 0))
+
+        btns = tk.Frame(win, bg="#1a1a1a")
+        btns.pack(pady=20)
+
+        def do_update():
+            def run():
+                try:
+                    status.set("Descargando actualización...")
+                    r = requests.get(file_url + "?t=" + str(int(time.time())), timeout=15)
+                    if r.status_code != 200 or not r.text.strip():
+                        status.set("No se pudo descargar la actualización")
+                        return
+                    target_path = os.path.abspath(__file__)
+                    new_path = target_path + ".new"
+                    _write_text(new_path, r.text)
+                    status.set("Aplicando actualización...")
+                    self.root.after(0, lambda: win.destroy())
+                    _run_update_helper(sys.executable, target_path, new_path, sys.argv[1:])
+                    try:
+                        self.root.destroy()
+                    except Exception:
+                        pass
+                    os._exit(0)
+                except Exception:
+                    status.set("Error al actualizar")
+            threading.Thread(target=run, daemon=True).start()
+
+        tk.Button(btns, text="ACTUALIZAR AHORA", command=do_update, bg="#00FF00", fg="black", font=("Arial", 12, "bold"), width=18).pack(side=tk.LEFT, padx=10)
+        tk.Button(btns, text="MÁS TARDE", command=win.destroy, bg="#555", fg="black", font=("Arial", 12, "bold"), width=12).pack(side=tk.LEFT, padx=10)
 
     def _headers(self):
         if not self.admin_token:
