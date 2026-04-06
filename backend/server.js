@@ -328,18 +328,24 @@ async function initSucursalConfig() {
             CREATE TABLE IF NOT EXISTS sucursales_config (
                 nombre TEXT PRIMARY KEY,
                 demora_actual INTEGER NOT NULL DEFAULT 30,
-                cerrado BOOLEAN NOT NULL DEFAULT FALSE
+                cerrado BOOLEAN NOT NULL DEFAULT FALSE,
+                cerrado_origen TEXT NOT NULL DEFAULT 'auto',
+                cerrado_updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
             )
         `);
         await pool.query(`ALTER TABLE sucursales_config ADD COLUMN IF NOT EXISTS cerrado BOOLEAN NOT NULL DEFAULT FALSE`);
+        await pool.query(`ALTER TABLE sucursales_config ADD COLUMN IF NOT EXISTS cerrado_origen TEXT NOT NULL DEFAULT 'auto'`);
+        await pool.query(`ALTER TABLE sucursales_config ADD COLUMN IF NOT EXISTS cerrado_updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`);
         const rows = await pool.query(`SELECT nombre FROM sucursales_config`);
         const existing = new Set(rows.rows.map(r => (r.nombre || '').toLowerCase()));
         if (!existing.has('la_serena')) {
-            await pool.query(`INSERT INTO sucursales_config (nombre, demora_actual, cerrado) VALUES ($1, 30, FALSE)`, ['la_serena']);
+            await pool.query(`INSERT INTO sucursales_config (nombre, demora_actual, cerrado, cerrado_origen, cerrado_updated_at) VALUES ($1, 30, FALSE, 'auto', NOW())`, ['la_serena']);
         }
         if (!existing.has('coquimbo')) {
-            await pool.query(`INSERT INTO sucursales_config (nombre, demora_actual, cerrado) VALUES ($1, 30, FALSE)`, ['coquimbo']);
+            await pool.query(`INSERT INTO sucursales_config (nombre, demora_actual, cerrado, cerrado_origen, cerrado_updated_at) VALUES ($1, 30, FALSE, 'auto', NOW())`, ['coquimbo']);
         }
+        await pool.query(`UPDATE sucursales_config SET cerrado_origen = 'auto' WHERE cerrado_origen IS NULL OR cerrado_origen = ''`);
+        await pool.query(`UPDATE sucursales_config SET cerrado_updated_at = NOW() WHERE cerrado_updated_at IS NULL`);
         console.log('✅ Sucursales_config OK');
     } catch (e) {
         console.error('Error inicializando sucursales_config:', e.message);
@@ -347,6 +353,53 @@ async function initSucursalConfig() {
 }
 
 initSucursalConfig();
+
+function getChileWeekdayAndMinutes() {
+    const fmt = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'America/Santiago',
+        weekday: 'short',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+    });
+    const parts = fmt.formatToParts(new Date());
+    const out = {};
+    for (const p of parts) out[p.type] = p.value;
+    const weekday = out.weekday;
+    const hour = parseInt(out.hour, 10);
+    const minute = parseInt(out.minute, 10);
+    return { weekday, minutes: hour * 60 + minute };
+}
+
+function getCloseMinuteForWeekday(weekday) {
+    return (weekday === 'Fri' || weekday === 'Sat') ? (23 * 60 + 40) : (22 * 60 + 55);
+}
+
+async function syncAutoCierreSucursales() {
+    try {
+        const { weekday, minutes } = getChileWeekdayAndMinutes();
+        const start = 13 * 60 + 30;
+        const close = getCloseMinuteForWeekday(weekday);
+        const inSchedule = minutes >= start && minutes <= close;
+
+        if (!inSchedule) {
+            await pool.query(`UPDATE sucursales_config SET cerrado = TRUE, cerrado_origen = 'auto', cerrado_updated_at = NOW()`);
+            return;
+        }
+
+        if (minutes === start) {
+            await pool.query(`UPDATE sucursales_config SET cerrado = FALSE, cerrado_origen = 'auto', cerrado_updated_at = NOW()`);
+            return;
+        }
+
+        await pool.query(`UPDATE sucursales_config SET cerrado = FALSE, cerrado_origen = 'auto', cerrado_updated_at = NOW() WHERE cerrado = TRUE AND cerrado_origen = 'auto'`);
+    } catch (e) {
+        console.error('Error syncAutoCierreSucursales:', e?.message || e);
+    }
+}
+
+setInterval(syncAutoCierreSucursales, 30000);
+syncAutoCierreSucursales();
 
 // --- RUTAS DE PRODUCTOS (MENÚS) ---
 
@@ -679,18 +732,33 @@ app.put('/api/config/:sucursal', async (req, res) => {
     const { sucursal } = req.params;
     const { demora_actual, cerrado } = req.body || {};
     try {
+        const expected = String(process.env.ADMIN_API_TOKEN || '');
+        if (expected) {
+            const token = getAdminTokenFromReq(req);
+            if (!token || !safeEqualString(token, expected)) {
+                return res.status(401).json({ error: "No autorizado" });
+            }
+        }
         const sucKey = normalizarSucursalKey(sucursal);
-        const cur = await pool.query("SELECT demora_actual, cerrado FROM sucursales_config WHERE nombre = $1", [sucKey]);
+        const cur = await pool.query("SELECT demora_actual, cerrado, cerrado_origen FROM sucursales_config WHERE nombre = $1", [sucKey]);
         if (cur.rows.length === 0) {
             const dem = typeof demora_actual === 'number' ? demora_actual : 30;
             const cer = typeof cerrado === 'boolean' ? cerrado : false;
-            await pool.query("INSERT INTO sucursales_config (nombre, demora_actual, cerrado) VALUES ($1, $2, $3)", [sucKey, dem, cer]);
-            return res.json({ mensaje: "Configuración creada", demora_actual: dem, cerrado: cer });
+            const origen = typeof cerrado === 'boolean' ? 'manual' : 'auto';
+            await pool.query(
+                "INSERT INTO sucursales_config (nombre, demora_actual, cerrado, cerrado_origen, cerrado_updated_at) VALUES ($1, $2, $3, $4, NOW())",
+                [sucKey, dem, cer, origen]
+            );
+            return res.json({ mensaje: "Configuración creada", demora_actual: dem, cerrado: cer, cerrado_origen: origen });
         }
         const dem = typeof demora_actual === 'number' ? demora_actual : cur.rows[0].demora_actual;
         const cer = typeof cerrado === 'boolean' ? cerrado : cur.rows[0].cerrado;
-        await pool.query("UPDATE sucursales_config SET demora_actual = $1, cerrado = $2 WHERE nombre = $3", [dem, cer, sucKey]);
-        res.json({ mensaje: "Configuración actualizada", demora_actual: dem, cerrado: cer });
+        const origen = typeof cerrado === 'boolean' ? 'manual' : cur.rows[0].cerrado_origen;
+        await pool.query(
+            "UPDATE sucursales_config SET demora_actual = $1, cerrado = $2, cerrado_origen = $3, cerrado_updated_at = NOW() WHERE nombre = $4",
+            [dem, cer, origen, sucKey]
+        );
+        res.json({ mensaje: "Configuración actualizada", demora_actual: dem, cerrado: cer, cerrado_origen: origen });
     } catch (err) {
         res.status(500).json({ error: "Error al actualizar configuración" });
     }

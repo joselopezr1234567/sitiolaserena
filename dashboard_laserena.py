@@ -15,7 +15,7 @@ except Exception:
 SUCURSAL = "La Serena"
 API_URL = os.environ.get("API_URL", "https://sitiolaserena.onrender.com/api")
 ADMIN_API_TOKEN = os.environ.get("ADMIN_API_TOKEN", "")
-PRINTER_IP = "192.168.1.108" # POR FAVOR ACTUALIZA ESTA IP PARA LA SERENA
+PRINTER_IP = os.environ.get("PRINTER_IP", "192.168.1.108")
 TOP_BAR_BG = "#333"
 
 def _admin_headers():
@@ -92,6 +92,11 @@ class DashboardPizzeria:
                                             bg="#FF0000", fg="black", font=("Arial", 10, "bold"))
         self.btn_guardar_demora.pack(side=tk.LEFT, padx=10)
 
+        self.estado_local_var = tk.StringVar(value="Estado: -")
+        tk.Label(config_frame, textvariable=self.estado_local_var, font=("Arial", 12, "bold"), fg="#FFD700", bg="#222").pack(side=tk.LEFT, padx=10)
+        self.btn_estado_local = tk.Button(config_frame, text="CAMBIAR ESTADO", command=self.toggle_estado_local, bg="#DDDDDD", fg="black", font=("Arial", 10, "bold"))
+        self.btn_estado_local.pack(side=tk.LEFT, padx=10)
+
         # Botones de Acción y Herramientas (Abajo)
         btn_frame = tk.Frame(root, bg="#111")
         btn_frame.pack(fill=tk.X, pady=20, padx=20)
@@ -132,6 +137,7 @@ class DashboardPizzeria:
         
         # Cargar demora inicial
         self.cargar_demora_inicial()
+        self.cargar_estado_local()
 
     def cargar_demora_inicial(self):
         try:
@@ -142,10 +148,38 @@ class DashboardPizzeria:
         except Exception as e:
             print(f"Error al cargar demora: {e}")
 
+    def cargar_estado_local(self):
+        try:
+            response = requests.get(f"{API_URL}/config/{SUCURSAL}", headers=_admin_headers(), timeout=10)
+            if response.status_code == 200:
+                data = response.json()
+                self.estado_local_var.set("Estado: CERRADO" if (data.get("cerrado") is True) else "Estado: ABIERTO")
+            else:
+                self.estado_local_var.set("Estado: ERROR")
+        except Exception:
+            self.estado_local_var.set("Estado: ERROR")
+        self.root.after(30000, self.cargar_estado_local)
+
+    def toggle_estado_local(self):
+        try:
+            getr = requests.get(f"{API_URL}/config/{SUCURSAL}", headers=_admin_headers(), timeout=10)
+            cur_cerrado = False
+            if getr.status_code == 200:
+                cur_cerrado = bool(getr.json().get("cerrado"))
+            upr = requests.put(f"{API_URL}/config/{SUCURSAL}", json={"cerrado": (not cur_cerrado)}, headers=_admin_headers(), timeout=10)
+            if upr.status_code == 200:
+                self.cargar_estado_local()
+            elif upr.status_code == 401:
+                messagebox.showerror("No autorizado", "Token inválido o faltante. Revisa ADMIN_API_TOKEN en este PC.")
+            else:
+                messagebox.showerror("Error", "No se pudo cambiar el estado del local")
+        except Exception:
+            messagebox.showerror("Error", "No hay conexión con el servidor")
+
     def actualizar_demora(self):
         try:
             nueva_demora = int(self.demora_var.get())
-            response = requests.put(f"{API_URL}/config/{SUCURSAL}", json={"demora_actual": nueva_demora})
+            response = requests.put(f"{API_URL}/config/{SUCURSAL}", json={"demora_actual": nueva_demora}, headers=_admin_headers(), timeout=10)
             if response.status_code == 200:
                 messagebox.showinfo("Éxito", f"Tiempo de demora actualizado a {nueva_demora} minutos.")
             else:
