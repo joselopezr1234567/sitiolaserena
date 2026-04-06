@@ -233,7 +233,7 @@
             }
             else if (tipo === 'acompañamientos') {
                 titulo.innerText = "Acompañamientos";
-                const items = productosDB.filter(p => p.categoria === 'acompañamientos');
+                const items = productosDB.filter(p => p.categoria === normalizarCategoria('acompañamientos'));
                 precioTotal.innerText = `$0`;
                 items.forEach(i => {
                     opciones.innerHTML += `
