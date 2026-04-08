@@ -81,9 +81,15 @@ function normalizarSucursalKey(s) {
 async function isSucursalOpen(sucursal) {
     try {
         const suc = normalizarSucursalKey(sucursal);
-        const r = await pool.query('SELECT cerrado FROM sucursales_config WHERE nombre = $1', [suc]);
-        const cerrado = r.rows[0]?.cerrado === true;
-        return !cerrado && getChileBusinessOpenNow();
+        const r = await pool.query('SELECT cerrado, open_regular_min, close_regular_min, open_weekend_min, close_weekend_min FROM sucursales_config WHERE nombre = $1', [suc]);
+        const row = r.rows[0];
+        if (!row) return getChileBusinessOpenNow();
+        const cerrado = row.cerrado === true;
+        const { weekday, minutes } = getChileWeekdayAndMinutes();
+        const openMin = (weekday === 'Fri' || weekday === 'Sat') ? Number(row.open_weekend_min) : Number(row.open_regular_min);
+        const closeMin = (weekday === 'Fri' || weekday === 'Sat') ? Number(row.close_weekend_min) : Number(row.close_regular_min);
+        const inSchedule = minutes >= openMin && minutes <= closeMin;
+        return !cerrado && inSchedule;
     } catch {
         return getChileBusinessOpenNow();
     }
@@ -330,19 +336,27 @@ async function initSucursalConfig() {
                 demora_actual INTEGER NOT NULL DEFAULT 30,
                 cerrado BOOLEAN NOT NULL DEFAULT FALSE,
                 cerrado_origen TEXT NOT NULL DEFAULT 'auto',
-                cerrado_updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                cerrado_updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                open_regular_min INTEGER NOT NULL DEFAULT 810,
+                close_regular_min INTEGER NOT NULL DEFAULT 1375,
+                open_weekend_min INTEGER NOT NULL DEFAULT 810,
+                close_weekend_min INTEGER NOT NULL DEFAULT 1420
             )
         `);
         await pool.query(`ALTER TABLE sucursales_config ADD COLUMN IF NOT EXISTS cerrado BOOLEAN NOT NULL DEFAULT FALSE`);
         await pool.query(`ALTER TABLE sucursales_config ADD COLUMN IF NOT EXISTS cerrado_origen TEXT NOT NULL DEFAULT 'auto'`);
         await pool.query(`ALTER TABLE sucursales_config ADD COLUMN IF NOT EXISTS cerrado_updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`);
+        await pool.query(`ALTER TABLE sucursales_config ADD COLUMN IF NOT EXISTS open_regular_min INTEGER NOT NULL DEFAULT 810`);
+        await pool.query(`ALTER TABLE sucursales_config ADD COLUMN IF NOT EXISTS close_regular_min INTEGER NOT NULL DEFAULT 1375`);
+        await pool.query(`ALTER TABLE sucursales_config ADD COLUMN IF NOT EXISTS open_weekend_min INTEGER NOT NULL DEFAULT 810`);
+        await pool.query(`ALTER TABLE sucursales_config ADD COLUMN IF NOT EXISTS close_weekend_min INTEGER NOT NULL DEFAULT 1420`);
         const rows = await pool.query(`SELECT nombre FROM sucursales_config`);
         const existing = new Set(rows.rows.map(r => (r.nombre || '').toLowerCase()));
         if (!existing.has('la_serena')) {
-            await pool.query(`INSERT INTO sucursales_config (nombre, demora_actual, cerrado, cerrado_origen, cerrado_updated_at) VALUES ($1, 30, FALSE, 'auto', NOW())`, ['la_serena']);
+            await pool.query(`INSERT INTO sucursales_config (nombre, demora_actual, cerrado, cerrado_origen, cerrado_updated_at, open_regular_min, close_regular_min, open_weekend_min, close_weekend_min) VALUES ($1, 30, FALSE, 'auto', NOW(), 810, 1375, 810, 1420)`, ['la_serena']);
         }
         if (!existing.has('coquimbo')) {
-            await pool.query(`INSERT INTO sucursales_config (nombre, demora_actual, cerrado, cerrado_origen, cerrado_updated_at) VALUES ($1, 30, FALSE, 'auto', NOW())`, ['coquimbo']);
+            await pool.query(`INSERT INTO sucursales_config (nombre, demora_actual, cerrado, cerrado_origen, cerrado_updated_at, open_regular_min, close_regular_min, open_weekend_min, close_weekend_min) VALUES ($1, 30, FALSE, 'auto', NOW(), 810, 1375, 810, 1420)`, ['coquimbo']);
         }
         await pool.query(`UPDATE sucursales_config SET cerrado_origen = 'auto' WHERE cerrado_origen IS NULL OR cerrado_origen = ''`);
         await pool.query(`UPDATE sucursales_config SET cerrado_updated_at = NOW() WHERE cerrado_updated_at IS NULL`);
@@ -371,28 +385,22 @@ function getChileWeekdayAndMinutes() {
     return { weekday, minutes: hour * 60 + minute };
 }
 
-function getCloseMinuteForWeekday(weekday) {
-    return (weekday === 'Fri' || weekday === 'Sat') ? (23 * 60 + 40) : (22 * 60 + 55);
-}
-
 async function syncAutoCierreSucursales() {
     try {
         const { weekday, minutes } = getChileWeekdayAndMinutes();
-        const start = 13 * 60 + 30;
-        const close = getCloseMinuteForWeekday(weekday);
-        const inSchedule = minutes >= start && minutes <= close;
-
-        if (!inSchedule) {
-            await pool.query(`UPDATE sucursales_config SET cerrado = TRUE, cerrado_origen = 'auto', cerrado_updated_at = NOW()`);
-            return;
+        const configs = await pool.query(`SELECT nombre, open_regular_min, close_regular_min, open_weekend_min, close_weekend_min FROM sucursales_config`);
+        for (const c of configs.rows) {
+            const openMin = (weekday === 'Fri' || weekday === 'Sat') ? Number(c.open_weekend_min) : Number(c.open_regular_min);
+            const closeMin = (weekday === 'Fri' || weekday === 'Sat') ? Number(c.close_weekend_min) : Number(c.close_regular_min);
+            const inSchedule = minutes >= openMin && minutes <= closeMin;
+            if (!inSchedule) {
+                await pool.query(`UPDATE sucursales_config SET cerrado = TRUE, cerrado_origen = 'auto', cerrado_updated_at = NOW() WHERE nombre = $1`, [c.nombre]);
+            } else if (minutes === openMin) {
+                await pool.query(`UPDATE sucursales_config SET cerrado = FALSE, cerrado_origen = 'auto', cerrado_updated_at = NOW() WHERE nombre = $1`, [c.nombre]);
+            } else {
+                await pool.query(`UPDATE sucursales_config SET cerrado = FALSE, cerrado_origen = 'auto', cerrado_updated_at = NOW() WHERE nombre = $1 AND cerrado = TRUE AND cerrado_origen = 'auto'`, [c.nombre]);
+            }
         }
-
-        if (minutes === start) {
-            await pool.query(`UPDATE sucursales_config SET cerrado = FALSE, cerrado_origen = 'auto', cerrado_updated_at = NOW()`);
-            return;
-        }
-
-        await pool.query(`UPDATE sucursales_config SET cerrado = FALSE, cerrado_origen = 'auto', cerrado_updated_at = NOW() WHERE cerrado = TRUE AND cerrado_origen = 'auto'`);
     } catch (e) {
         console.error('Error syncAutoCierreSucursales:', e?.message || e);
     }
@@ -730,7 +738,7 @@ app.get('/api/config/:sucursal', async (req, res) => {
 
 app.put('/api/config/:sucursal', async (req, res) => {
     const { sucursal } = req.params;
-    const { demora_actual, cerrado } = req.body || {};
+    const { demora_actual, cerrado, open_regular, close_regular, open_weekend, close_weekend } = req.body || {};
     try {
         const expected = String(process.env.ADMIN_API_TOKEN || '');
         if (expected) {
@@ -740,23 +748,47 @@ app.put('/api/config/:sucursal', async (req, res) => {
             }
         }
         const sucKey = normalizarSucursalKey(sucursal);
-        const cur = await pool.query("SELECT demora_actual, cerrado, cerrado_origen FROM sucursales_config WHERE nombre = $1", [sucKey]);
+        const cur = await pool.query("SELECT demora_actual, cerrado, cerrado_origen, open_regular_min, close_regular_min, open_weekend_min, close_weekend_min FROM sucursales_config WHERE nombre = $1", [sucKey]);
+        function toMin(s) {
+            if (!s || typeof s !== 'string') return null;
+            const m = s.trim().match(/^(\d{1,2}):(\d{2})$/);
+            if (!m) return null;
+            const hh = Math.max(0, Math.min(23, parseInt(m[1], 10)));
+            const mm = Math.max(0, Math.min(59, parseInt(m[2], 10)));
+            return hh * 60 + mm;
+        }
+        const orMin = toMin(open_regular);
+        const crMin = toMin(close_regular);
+        const owMin = toMin(open_weekend);
+        const cwMin = toMin(close_weekend);
         if (cur.rows.length === 0) {
             const dem = typeof demora_actual === 'number' ? demora_actual : 30;
             const cer = typeof cerrado === 'boolean' ? cerrado : false;
             const origen = typeof cerrado === 'boolean' ? 'manual' : 'auto';
+            const values = {
+                open_regular_min: orMin ?? 810,
+                close_regular_min: crMin ?? 1375,
+                open_weekend_min: owMin ?? 810,
+                close_weekend_min: cwMin ?? 1420
+            };
             await pool.query(
-                "INSERT INTO sucursales_config (nombre, demora_actual, cerrado, cerrado_origen, cerrado_updated_at) VALUES ($1, $2, $3, $4, NOW())",
-                [sucKey, dem, cer, origen]
+                "INSERT INTO sucursales_config (nombre, demora_actual, cerrado, cerrado_origen, cerrado_updated_at, open_regular_min, close_regular_min, open_weekend_min, close_weekend_min) VALUES ($1, $2, $3, $4, NOW(), $5, $6, $7, $8)",
+                [sucKey, dem, cer, origen, values.open_regular_min, values.close_regular_min, values.open_weekend_min, values.close_weekend_min]
             );
             return res.json({ mensaje: "Configuración creada", demora_actual: dem, cerrado: cer, cerrado_origen: origen });
         }
         const dem = typeof demora_actual === 'number' ? demora_actual : cur.rows[0].demora_actual;
         const cer = typeof cerrado === 'boolean' ? cerrado : cur.rows[0].cerrado;
         const origen = typeof cerrado === 'boolean' ? 'manual' : cur.rows[0].cerrado_origen;
+        const nr = {
+            open_regular_min: orMin ?? cur.rows[0].open_regular_min,
+            close_regular_min: crMin ?? cur.rows[0].close_regular_min,
+            open_weekend_min: owMin ?? cur.rows[0].open_weekend_min,
+            close_weekend_min: cwMin ?? cur.rows[0].close_weekend_min
+        };
         await pool.query(
-            "UPDATE sucursales_config SET demora_actual = $1, cerrado = $2, cerrado_origen = $3, cerrado_updated_at = NOW() WHERE nombre = $4",
-            [dem, cer, origen, sucKey]
+            "UPDATE sucursales_config SET demora_actual = $1, cerrado = $2, cerrado_origen = $3, cerrado_updated_at = NOW(), open_regular_min = $4, close_regular_min = $5, open_weekend_min = $6, close_weekend_min = $7 WHERE nombre = $8",
+            [dem, cer, origen, nr.open_regular_min, nr.close_regular_min, nr.open_weekend_min, nr.close_weekend_min, sucKey]
         );
         res.json({ mensaje: "Configuración actualizada", demora_actual: dem, cerrado: cer, cerrado_origen: origen });
     } catch (err) {

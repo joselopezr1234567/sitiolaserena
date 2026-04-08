@@ -716,6 +716,7 @@ class AdminManager:
             ("Coquimbo", "coquimbo"),
         ]
         self.cierre_vars = {}
+        self.horario_vars = {}
         for nombre, slug in filas:
             fila = tk.Frame(content, bg="#222", padx=20, pady=15)
             fila.pack(fill=tk.X, pady=10)
@@ -728,6 +729,26 @@ class AdminManager:
                 return lambda: self.toggle_cierre(s)
             tk.Button(fila, text="Cambiar estado", command=make_toggle(slug), bg="#FF0000", fg="black", font=("Arial", 12, "bold")).pack(side=tk.RIGHT)
 
+            # Horario
+            fila2 = tk.Frame(content, bg="#222", padx=20, pady=10)
+            fila2.pack(fill=tk.X, pady=(0, 12))
+            tk.Label(fila2, text="Apertura (Dom-Jue):", fg="#ffffff", bg="#222", font=("Arial", 11, "bold")).pack(side=tk.LEFT, padx=(0,6))
+            v_or = tk.StringVar(value="")
+            tk.Entry(fila2, textvariable=v_or, width=6, justify="center").pack(side=tk.LEFT)
+            tk.Label(fila2, text="Cierre (Dom-Jue):", fg="#ffffff", bg="#222", font=("Arial", 11, "bold")).pack(side=tk.LEFT, padx=(14,6))
+            v_cr = tk.StringVar(value="")
+            tk.Entry(fila2, textvariable=v_cr, width=6, justify="center").pack(side=tk.LEFT)
+            tk.Label(fila2, text="Apertura (Vie-Sáb):", fg="#ffffff", bg="#222", font=("Arial", 11, "bold")).pack(side=tk.LEFT, padx=(14,6))
+            v_ow = tk.StringVar(value="")
+            tk.Entry(fila2, textvariable=v_ow, width=6, justify="center").pack(side=tk.LEFT)
+            tk.Label(fila2, text="Cierre (Vie-Sáb):", fg="#ffffff", bg="#222", font=("Arial", 11, "bold")).pack(side=tk.LEFT, padx=(14,6))
+            v_cw = tk.StringVar(value="")
+            tk.Entry(fila2, textvariable=v_cw, width=6, justify="center").pack(side=tk.LEFT)
+            def make_save(s):
+                return lambda: self.guardar_horario(s)
+            tk.Button(fila2, text="Guardar horario", command=make_save(slug), bg="#00FF00", fg="black", font=("Arial", 11, "bold")).pack(side=tk.LEFT, padx=12)
+            self.horario_vars[slug] = (v_or, v_cr, v_ow, v_cw)
+
         tk.Button(content, text="Actualizar estados", command=self.cargar_estados_cierre, bg="#00FF00", fg="black", font=("Arial", 12, "bold")).pack(pady=10)
         self.cargar_estados_cierre()
 
@@ -738,6 +759,20 @@ class AdminManager:
                 if r.status_code == 200:
                     dat = r.json()
                     self.cierre_vars[slug].set("abierto" if (dat.get("cerrado") is not True) else "cerrado")
+                    def fmt(m):
+                        try:
+                            m = int(m)
+                            hh = m // 60
+                            mm = m % 60
+                            return f"{hh:02d}:{mm:02d}"
+                        except Exception:
+                            return ""
+                    if slug in self.horario_vars:
+                        v_or, v_cr, v_ow, v_cw = self.horario_vars[slug]
+                        v_or.set(fmt(dat.get("open_regular_min", 810)))
+                        v_cr.set(fmt(dat.get("close_regular_min", 1375)))
+                        v_ow.set(fmt(dat.get("open_weekend_min", 810)))
+                        v_cw.set(fmt(dat.get("close_weekend_min", 1420)))
                 else:
                     self.cierre_vars[slug].set("error")
         except Exception:
@@ -757,6 +792,28 @@ class AdminManager:
                 messagebox.showinfo("Listo", f"{sucursal_slug.replace('_',' ').title()}: estado actualizado")
             else:
                 messagebox.showerror("Error", "No se pudo actualizar estado")
+        except Exception:
+            messagebox.showerror("Error", "No hay conexión con el servidor")
+
+    def guardar_horario(self, sucursal_slug):
+        try:
+            v_or, v_cr, v_ow, v_cw = self.horario_vars.get(sucursal_slug, (None, None, None, None))
+            if not v_or: 
+                return
+            data = {
+                "open_regular": v_or.get().strip(),
+                "close_regular": v_cr.get().strip(),
+                "open_weekend": v_ow.get().strip(),
+                "close_weekend": v_cw.get().strip()
+            }
+            r = requests.put(f"{API_URL}/config/{sucursal_slug}", json=data, headers=self._headers(), timeout=10)
+            if r.status_code == 200:
+                messagebox.showinfo("Listo", "Horario actualizado")
+                self.cargar_estados_cierre()
+            elif r.status_code == 401:
+                messagebox.showerror("No autorizado", "Token inválido o faltante. Revisa ADMIN_API_TOKEN en este PC.")
+            else:
+                messagebox.showerror("Error", "No se pudo actualizar el horario (formato HH:MM)")
         except Exception:
             messagebox.showerror("Error", "No hay conexión con el servidor")
 if __name__ == "__main__":

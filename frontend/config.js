@@ -24,11 +24,16 @@ window.APP_CONFIG = {
         return { weekday, minutes: hour * 60 + minute };
     }
 
-    function isOpenNow() {
+    function isOpenNowFromConfig(cfg) {
         const { weekday, minutes } = getChileParts();
-        const start = 13 * 60 + 30;
-        const end = (weekday === 'Fri' || weekday === 'Sat') ? (23 * 60 + 40) : (22 * 60 + 55);
-        const open = minutes >= start && minutes <= end;
+        if (!cfg) return { open: true };
+        const openReg = Number(cfg.open_regular_min ?? 810);
+        const closeReg = Number(cfg.close_regular_min ?? 1375);
+        const openWe = Number(cfg.open_weekend_min ?? 810);
+        const closeWe = Number(cfg.close_weekend_min ?? 1420);
+        const openMin = (weekday === 'Fri' || weekday === 'Sat') ? openWe : openReg;
+        const closeMin = (weekday === 'Fri' || weekday === 'Sat') ? closeWe : closeReg;
+        const open = minutes >= openMin && minutes <= closeMin;
         return { open };
     }
 
@@ -58,7 +63,7 @@ window.APP_CONFIG = {
     }
 
     async function refresh() {
-        let open = isOpenNow().open;
+        let open = true;
         try {
             const baseUrl = (window.APP_CONFIG && window.APP_CONFIG.API_BASE_URL) ? window.APP_CONFIG.API_BASE_URL : 'http://localhost:3000';
             const path = (location.pathname || '').toLowerCase();
@@ -69,6 +74,7 @@ window.APP_CONFIG = {
                 const res = await fetch(`${baseUrl}/api/config/${suc}`);
                 if (res.ok) {
                     const cfg = await res.json();
+                    open = isOpenNowFromConfig(cfg).open;
                     if (cfg && cfg.cerrado === true) {
                         open = false;
                     }
