@@ -78,17 +78,52 @@ function normalizarSucursalKey(s) {
     return key || v;
 }
 
+function weekdayKeyFromShort(weekday) {
+    switch (weekday) {
+        case 'Mon': return 'mon';
+        case 'Tue': return 'tue';
+        case 'Wed': return 'wed';
+        case 'Thu': return 'thu';
+        case 'Fri': return 'fri';
+        case 'Sat': return 'sat';
+        case 'Sun': return 'sun';
+        default: return null;
+    }
+}
+
+function toMinuteSafe(v) {
+    const n = Number(v);
+    if (!Number.isFinite(n)) return null;
+    if (n < 0 || n > 24 * 60) return null;
+    return Math.trunc(n);
+}
+
+function getDayScheduleMinutes(row, weekdayShort) {
+    const dayKey = weekdayKeyFromShort(weekdayShort);
+    const horario = row?.horario_semanal;
+    if (dayKey && horario && typeof horario === 'object' && horario[dayKey]) {
+        const day = horario[dayKey];
+        const o = toMinuteSafe(day?.open);
+        const c = toMinuteSafe(day?.close);
+        if (o === null || c === null) return { openMin: null, closeMin: null };
+        return { openMin: o, closeMin: c };
+    }
+    const weekend = weekdayShort === 'Fri' || weekdayShort === 'Sat';
+    const openMin = weekend ? toMinuteSafe(row?.open_weekend_min) : toMinuteSafe(row?.open_regular_min);
+    const closeMin = weekend ? toMinuteSafe(row?.close_weekend_min) : toMinuteSafe(row?.close_regular_min);
+    return { openMin, closeMin };
+}
+
 async function isSucursalOpen(sucursal) {
     try {
         const suc = normalizarSucursalKey(sucursal);
-        const r = await pool.query('SELECT cerrado, open_regular_min, close_regular_min, open_weekend_min, close_weekend_min FROM sucursales_config WHERE nombre = $1', [suc]);
+        const r = await pool.query('SELECT cerrado, horario_semanal, open_regular_min, close_regular_min, open_weekend_min, close_weekend_min FROM sucursales_config WHERE nombre = $1', [suc]);
         const row = r.rows[0];
         if (!row) return getChileBusinessOpenNow();
         const cerrado = row.cerrado === true;
         const { weekday, minutes } = getChileWeekdayAndMinutes();
-        const openMin = (weekday === 'Fri' || weekday === 'Sat') ? Number(row.open_weekend_min) : Number(row.open_regular_min);
-        const closeMin = (weekday === 'Fri' || weekday === 'Sat') ? Number(row.close_weekend_min) : Number(row.close_regular_min);
-        const inSchedule = minutes >= openMin && minutes <= closeMin;
+        const { openMin, closeMin } = getDayScheduleMinutes(row, weekday);
+        const inSchedule = openMin !== null && closeMin !== null && minutes >= openMin && minutes <= closeMin;
         return !cerrado && inSchedule;
     } catch {
         return getChileBusinessOpenNow();
@@ -337,6 +372,7 @@ async function initSucursalConfig() {
                 cerrado BOOLEAN NOT NULL DEFAULT FALSE,
                 cerrado_origen TEXT NOT NULL DEFAULT 'auto',
                 cerrado_updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                horario_semanal JSONB NOT NULL DEFAULT '{}'::jsonb,
                 open_regular_min INTEGER NOT NULL DEFAULT 810,
                 close_regular_min INTEGER NOT NULL DEFAULT 1375,
                 open_weekend_min INTEGER NOT NULL DEFAULT 810,
@@ -346,6 +382,7 @@ async function initSucursalConfig() {
         await pool.query(`ALTER TABLE sucursales_config ADD COLUMN IF NOT EXISTS cerrado BOOLEAN NOT NULL DEFAULT FALSE`);
         await pool.query(`ALTER TABLE sucursales_config ADD COLUMN IF NOT EXISTS cerrado_origen TEXT NOT NULL DEFAULT 'auto'`);
         await pool.query(`ALTER TABLE sucursales_config ADD COLUMN IF NOT EXISTS cerrado_updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`);
+        await pool.query(`ALTER TABLE sucursales_config ADD COLUMN IF NOT EXISTS horario_semanal JSONB NOT NULL DEFAULT '{}'::jsonb`);
         await pool.query(`ALTER TABLE sucursales_config ADD COLUMN IF NOT EXISTS open_regular_min INTEGER NOT NULL DEFAULT 810`);
         await pool.query(`ALTER TABLE sucursales_config ADD COLUMN IF NOT EXISTS close_regular_min INTEGER NOT NULL DEFAULT 1375`);
         await pool.query(`ALTER TABLE sucursales_config ADD COLUMN IF NOT EXISTS open_weekend_min INTEGER NOT NULL DEFAULT 810`);
@@ -353,13 +390,38 @@ async function initSucursalConfig() {
         const rows = await pool.query(`SELECT nombre FROM sucursales_config`);
         const existing = new Set(rows.rows.map(r => (r.nombre || '').toLowerCase()));
         if (!existing.has('la_serena')) {
-            await pool.query(`INSERT INTO sucursales_config (nombre, demora_actual, cerrado, cerrado_origen, cerrado_updated_at, open_regular_min, close_regular_min, open_weekend_min, close_weekend_min) VALUES ($1, 30, FALSE, 'auto', NOW(), 810, 1375, 810, 1420)`, ['la_serena']);
+            await pool.query(
+                `INSERT INTO sucursales_config (nombre, demora_actual, cerrado, cerrado_origen, cerrado_updated_at, horario_semanal, open_regular_min, close_regular_min, open_weekend_min, close_weekend_min)
+                 VALUES ($1, 30, FALSE, 'auto', NOW(),
+                   '{"mon":{"open":810,"close":1375},"tue":{"open":810,"close":1375},"wed":{"open":810,"close":1375},"thu":{"open":810,"close":1375},"fri":{"open":810,"close":1420},"sat":{"open":810,"close":1420},"sun":{"open":810,"close":1375}}'::jsonb,
+                   810, 1375, 810, 1420)`,
+                ['la_serena']
+            );
         }
         if (!existing.has('coquimbo')) {
-            await pool.query(`INSERT INTO sucursales_config (nombre, demora_actual, cerrado, cerrado_origen, cerrado_updated_at, open_regular_min, close_regular_min, open_weekend_min, close_weekend_min) VALUES ($1, 30, FALSE, 'auto', NOW(), 810, 1375, 810, 1420)`, ['coquimbo']);
+            await pool.query(
+                `INSERT INTO sucursales_config (nombre, demora_actual, cerrado, cerrado_origen, cerrado_updated_at, horario_semanal, open_regular_min, close_regular_min, open_weekend_min, close_weekend_min)
+                 VALUES ($1, 30, FALSE, 'auto', NOW(),
+                   '{"mon":{"open":810,"close":1375},"tue":{"open":810,"close":1375},"wed":{"open":810,"close":1375},"thu":{"open":810,"close":1375},"fri":{"open":810,"close":1420},"sat":{"open":810,"close":1420},"sun":{"open":810,"close":1375}}'::jsonb,
+                   810, 1375, 810, 1420)`,
+                ['coquimbo']
+            );
         }
         await pool.query(`UPDATE sucursales_config SET cerrado_origen = 'auto' WHERE cerrado_origen IS NULL OR cerrado_origen = ''`);
         await pool.query(`UPDATE sucursales_config SET cerrado_updated_at = NOW() WHERE cerrado_updated_at IS NULL`);
+        await pool.query(`
+            UPDATE sucursales_config
+            SET horario_semanal = jsonb_build_object(
+                'mon', jsonb_build_object('open', open_regular_min, 'close', close_regular_min),
+                'tue', jsonb_build_object('open', open_regular_min, 'close', close_regular_min),
+                'wed', jsonb_build_object('open', open_regular_min, 'close', close_regular_min),
+                'thu', jsonb_build_object('open', open_regular_min, 'close', close_regular_min),
+                'fri', jsonb_build_object('open', open_weekend_min, 'close', close_weekend_min),
+                'sat', jsonb_build_object('open', open_weekend_min, 'close', close_weekend_min),
+                'sun', jsonb_build_object('open', open_regular_min, 'close', close_regular_min)
+            )
+            WHERE horario_semanal IS NULL OR horario_semanal = '{}'::jsonb
+        `);
         console.log('✅ Sucursales_config OK');
     } catch (e) {
         console.error('Error inicializando sucursales_config:', e.message);
@@ -388,11 +450,10 @@ function getChileWeekdayAndMinutes() {
 async function syncAutoCierreSucursales() {
     try {
         const { weekday, minutes } = getChileWeekdayAndMinutes();
-        const configs = await pool.query(`SELECT nombre, open_regular_min, close_regular_min, open_weekend_min, close_weekend_min FROM sucursales_config`);
+        const configs = await pool.query(`SELECT nombre, horario_semanal, open_regular_min, close_regular_min, open_weekend_min, close_weekend_min FROM sucursales_config`);
         for (const c of configs.rows) {
-            const openMin = (weekday === 'Fri' || weekday === 'Sat') ? Number(c.open_weekend_min) : Number(c.open_regular_min);
-            const closeMin = (weekday === 'Fri' || weekday === 'Sat') ? Number(c.close_weekend_min) : Number(c.close_regular_min);
-            const inSchedule = minutes >= openMin && minutes <= closeMin;
+            const { openMin, closeMin } = getDayScheduleMinutes(c, weekday);
+            const inSchedule = openMin !== null && closeMin !== null && minutes >= openMin && minutes <= closeMin;
             if (!inSchedule) {
                 await pool.query(`UPDATE sucursales_config SET cerrado = TRUE, cerrado_origen = 'auto', cerrado_updated_at = NOW() WHERE nombre = $1`, [c.nombre]);
             } else if (minutes === openMin) {
@@ -738,7 +799,7 @@ app.get('/api/config/:sucursal', async (req, res) => {
 
 app.put('/api/config/:sucursal', async (req, res) => {
     const { sucursal } = req.params;
-    const { demora_actual, cerrado, open_regular, close_regular, open_weekend, close_weekend } = req.body || {};
+    const { demora_actual, cerrado, schedule, horario_semanal, open_regular, close_regular, open_weekend, close_weekend } = req.body || {};
     try {
         const expected = String(process.env.ADMIN_API_TOKEN || '');
         if (expected) {
@@ -748,47 +809,110 @@ app.put('/api/config/:sucursal', async (req, res) => {
             }
         }
         const sucKey = normalizarSucursalKey(sucursal);
-        const cur = await pool.query("SELECT demora_actual, cerrado, cerrado_origen, open_regular_min, close_regular_min, open_weekend_min, close_weekend_min FROM sucursales_config WHERE nombre = $1", [sucKey]);
-        function toMin(s) {
-            if (!s || typeof s !== 'string') return null;
-            const m = s.trim().match(/^(\d{1,2}):(\d{2})$/);
+        const cur = await pool.query("SELECT demora_actual, cerrado, cerrado_origen, horario_semanal, open_regular_min, close_regular_min, open_weekend_min, close_weekend_min FROM sucursales_config WHERE nombre = $1", [sucKey]);
+
+        function parseHHMM(s) {
+            if (s === null || s === undefined) return null;
+            const str = String(s).trim();
+            if (!str) return null;
+            const m = str.match(/^(\d{1,2}):(\d{2})$/);
             if (!m) return null;
-            const hh = Math.max(0, Math.min(23, parseInt(m[1], 10)));
-            const mm = Math.max(0, Math.min(59, parseInt(m[2], 10)));
+            const hh = parseInt(m[1], 10);
+            const mm = parseInt(m[2], 10);
+            if (!Number.isFinite(hh) || !Number.isFinite(mm)) return null;
+            if (hh < 0 || hh > 23) return null;
+            if (mm < 0 || mm > 59) return null;
             return hh * 60 + mm;
         }
-        const orMin = toMin(open_regular);
-        const crMin = toMin(close_regular);
-        const owMin = toMin(open_weekend);
-        const cwMin = toMin(close_weekend);
+
+        function normalizeSchedule(obj) {
+            if (!obj || typeof obj !== 'object') return null;
+            const days = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+            const out = {};
+            for (const d of days) {
+                const raw = obj[d] || {};
+                const openStr = raw.open ?? raw.apertura ?? raw.opening ?? null;
+                const closeStr = raw.close ?? raw.cierre ?? raw.closing ?? null;
+                const o = parseHHMM(openStr);
+                const c = parseHHMM(closeStr);
+                if ((openStr === null || openStr === undefined || String(openStr).trim() === '') && (closeStr === null || closeStr === undefined || String(closeStr).trim() === '')) {
+                    out[d] = { open: null, close: null };
+                    continue;
+                }
+                if (o === null || c === null) return null;
+                if (o >= c) return null;
+                out[d] = { open: o, close: c };
+            }
+            return out;
+        }
+
+        function scheduleFromLegacy(orMin, crMin, owMin, cwMin) {
+            const regOpen = orMin ?? 810;
+            const regClose = crMin ?? 1375;
+            const weOpen = owMin ?? 810;
+            const weClose = cwMin ?? 1420;
+            return {
+                mon: { open: regOpen, close: regClose },
+                tue: { open: regOpen, close: regClose },
+                wed: { open: regOpen, close: regClose },
+                thu: { open: regOpen, close: regClose },
+                fri: { open: weOpen, close: weClose },
+                sat: { open: weOpen, close: weClose },
+                sun: { open: regOpen, close: regClose }
+            };
+        }
+
+        const scheduleInput = schedule || horario_semanal;
+        const scheduleNorm = normalizeSchedule(scheduleInput);
+        const legacyOr = parseHHMM(open_regular);
+        const legacyCr = parseHHMM(close_regular);
+        const legacyOw = parseHHMM(open_weekend);
+        const legacyCw = parseHHMM(close_weekend);
+
+        const hasScheduleInput = scheduleInput && typeof scheduleInput === 'object';
+        if (hasScheduleInput && !scheduleNorm) {
+            return res.status(400).json({ error: "Horario inválido" });
+        }
+        function isBadTimeStr(raw, parsed) {
+            if (raw === null || raw === undefined) return false;
+            const s = String(raw).trim();
+            if (!s) return false;
+            return parsed === null;
+        }
+        if (isBadTimeStr(open_regular, legacyOr) || isBadTimeStr(close_regular, legacyCr) || isBadTimeStr(open_weekend, legacyOw) || isBadTimeStr(close_weekend, legacyCw)) {
+            return res.status(400).json({ error: "Formato de hora inválido (HH:MM)" });
+        }
         if (cur.rows.length === 0) {
             const dem = typeof demora_actual === 'number' ? demora_actual : 30;
             const cer = typeof cerrado === 'boolean' ? cerrado : false;
             const origen = typeof cerrado === 'boolean' ? 'manual' : 'auto';
+            const sch = scheduleNorm || scheduleFromLegacy(legacyOr, legacyCr, legacyOw, legacyCw);
             const values = {
-                open_regular_min: orMin ?? 810,
-                close_regular_min: crMin ?? 1375,
-                open_weekend_min: owMin ?? 810,
-                close_weekend_min: cwMin ?? 1420
+                open_regular_min: sch.mon.open ?? 810,
+                close_regular_min: sch.mon.close ?? 1375,
+                open_weekend_min: sch.fri.open ?? 810,
+                close_weekend_min: sch.fri.close ?? 1420
             };
             await pool.query(
-                "INSERT INTO sucursales_config (nombre, demora_actual, cerrado, cerrado_origen, cerrado_updated_at, open_regular_min, close_regular_min, open_weekend_min, close_weekend_min) VALUES ($1, $2, $3, $4, NOW(), $5, $6, $7, $8)",
-                [sucKey, dem, cer, origen, values.open_regular_min, values.close_regular_min, values.open_weekend_min, values.close_weekend_min]
+                "INSERT INTO sucursales_config (nombre, demora_actual, cerrado, cerrado_origen, cerrado_updated_at, horario_semanal, open_regular_min, close_regular_min, open_weekend_min, close_weekend_min) VALUES ($1, $2, $3, $4, NOW(), $5::jsonb, $6, $7, $8, $9)",
+                [sucKey, dem, cer, origen, JSON.stringify(sch), values.open_regular_min, values.close_regular_min, values.open_weekend_min, values.close_weekend_min]
             );
             return res.json({ mensaje: "Configuración creada", demora_actual: dem, cerrado: cer, cerrado_origen: origen });
         }
         const dem = typeof demora_actual === 'number' ? demora_actual : cur.rows[0].demora_actual;
         const cer = typeof cerrado === 'boolean' ? cerrado : cur.rows[0].cerrado;
         const origen = typeof cerrado === 'boolean' ? 'manual' : cur.rows[0].cerrado_origen;
+        const currentSchedule = normalizeSchedule(cur.rows[0].horario_semanal) || scheduleFromLegacy(cur.rows[0].open_regular_min, cur.rows[0].close_regular_min, cur.rows[0].open_weekend_min, cur.rows[0].close_weekend_min);
+        const sch = scheduleNorm || (legacyOr !== null || legacyCr !== null || legacyOw !== null || legacyCw !== null ? scheduleFromLegacy(legacyOr, legacyCr, legacyOw, legacyCw) : currentSchedule);
         const nr = {
-            open_regular_min: orMin ?? cur.rows[0].open_regular_min,
-            close_regular_min: crMin ?? cur.rows[0].close_regular_min,
-            open_weekend_min: owMin ?? cur.rows[0].open_weekend_min,
-            close_weekend_min: cwMin ?? cur.rows[0].close_weekend_min
+            open_regular_min: sch.mon.open ?? cur.rows[0].open_regular_min,
+            close_regular_min: sch.mon.close ?? cur.rows[0].close_regular_min,
+            open_weekend_min: sch.fri.open ?? cur.rows[0].open_weekend_min,
+            close_weekend_min: sch.fri.close ?? cur.rows[0].close_weekend_min
         };
         await pool.query(
-            "UPDATE sucursales_config SET demora_actual = $1, cerrado = $2, cerrado_origen = $3, cerrado_updated_at = NOW(), open_regular_min = $4, close_regular_min = $5, open_weekend_min = $6, close_weekend_min = $7 WHERE nombre = $8",
-            [dem, cer, origen, nr.open_regular_min, nr.close_regular_min, nr.open_weekend_min, nr.close_weekend_min, sucKey]
+            "UPDATE sucursales_config SET demora_actual = $1, cerrado = $2, cerrado_origen = $3, cerrado_updated_at = NOW(), horario_semanal = $4::jsonb, open_regular_min = $5, close_regular_min = $6, open_weekend_min = $7, close_weekend_min = $8 WHERE nombre = $9",
+            [dem, cer, origen, JSON.stringify(sch), nr.open_regular_min, nr.close_regular_min, nr.open_weekend_min, nr.close_weekend_min, sucKey]
         );
         res.json({ mensaje: "Configuración actualizada", demora_actual: dem, cerrado: cer, cerrado_origen: origen });
     } catch (err) {

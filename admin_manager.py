@@ -729,25 +729,33 @@ class AdminManager:
                 return lambda: self.toggle_cierre(s)
             tk.Button(fila, text="Cambiar estado", command=make_toggle(slug), bg="#FF0000", fg="black", font=("Arial", 12, "bold")).pack(side=tk.RIGHT)
 
-            # Horario
-            fila2 = tk.Frame(content, bg="#222", padx=20, pady=10)
-            fila2.pack(fill=tk.X, pady=(0, 12))
-            tk.Label(fila2, text="Apertura (Dom-Jue):", fg="#ffffff", bg="#222", font=("Arial", 11, "bold")).pack(side=tk.LEFT, padx=(0,6))
-            v_or = tk.StringVar(value="")
-            tk.Entry(fila2, textvariable=v_or, width=6, justify="center").pack(side=tk.LEFT)
-            tk.Label(fila2, text="Cierre (Dom-Jue):", fg="#ffffff", bg="#222", font=("Arial", 11, "bold")).pack(side=tk.LEFT, padx=(14,6))
-            v_cr = tk.StringVar(value="")
-            tk.Entry(fila2, textvariable=v_cr, width=6, justify="center").pack(side=tk.LEFT)
-            tk.Label(fila2, text="Apertura (Vie-Sáb):", fg="#ffffff", bg="#222", font=("Arial", 11, "bold")).pack(side=tk.LEFT, padx=(14,6))
-            v_ow = tk.StringVar(value="")
-            tk.Entry(fila2, textvariable=v_ow, width=6, justify="center").pack(side=tk.LEFT)
-            tk.Label(fila2, text="Cierre (Vie-Sáb):", fg="#ffffff", bg="#222", font=("Arial", 11, "bold")).pack(side=tk.LEFT, padx=(14,6))
-            v_cw = tk.StringVar(value="")
-            tk.Entry(fila2, textvariable=v_cw, width=6, justify="center").pack(side=tk.LEFT)
+            horarios = tk.Frame(content, bg="#222", padx=20, pady=12)
+            horarios.pack(fill=tk.X, pady=(0, 12))
+            tk.Label(horarios, text="Día", fg="#ffffff", bg="#222", font=("Arial", 11, "bold"), width=10, anchor="w").grid(row=0, column=0, sticky="w")
+            tk.Label(horarios, text="Apertura", fg="#ffffff", bg="#222", font=("Arial", 11, "bold"), width=10, anchor="w").grid(row=0, column=1, sticky="w")
+            tk.Label(horarios, text="Cierre", fg="#ffffff", bg="#222", font=("Arial", 11, "bold"), width=10, anchor="w").grid(row=0, column=2, sticky="w")
+
+            dias = [
+                ("Lunes", "mon"),
+                ("Martes", "tue"),
+                ("Miércoles", "wed"),
+                ("Jueves", "thu"),
+                ("Viernes", "fri"),
+                ("Sábado", "sat"),
+                ("Domingo", "sun"),
+            ]
+            self.horario_vars[slug] = {}
+            for idx, (label, key) in enumerate(dias, start=1):
+                tk.Label(horarios, text=label, fg="#ffffff", bg="#222", font=("Arial", 10, "bold"), width=10, anchor="w").grid(row=idx, column=0, sticky="w", pady=2)
+                v_open = tk.StringVar(value="")
+                v_close = tk.StringVar(value="")
+                tk.Entry(horarios, textvariable=v_open, width=6, justify="center").grid(row=idx, column=1, sticky="w", padx=(0, 10))
+                tk.Entry(horarios, textvariable=v_close, width=6, justify="center").grid(row=idx, column=2, sticky="w")
+                self.horario_vars[slug][key] = (v_open, v_close)
+
             def make_save(s):
                 return lambda: self.guardar_horario(s)
-            tk.Button(fila2, text="Guardar horario", command=make_save(slug), bg="#00FF00", fg="black", font=("Arial", 11, "bold")).pack(side=tk.LEFT, padx=12)
-            self.horario_vars[slug] = (v_or, v_cr, v_ow, v_cw)
+            tk.Button(horarios, text="Guardar horario", command=make_save(slug), bg="#00FF00", fg="black", font=("Arial", 11, "bold")).grid(row=1, column=3, rowspan=2, padx=(20, 0), sticky="n")
 
         tk.Button(content, text="Actualizar estados", command=self.cargar_estados_cierre, bg="#00FF00", fg="black", font=("Arial", 12, "bold")).pack(pady=10)
         self.cargar_estados_cierre()
@@ -761,6 +769,8 @@ class AdminManager:
                     self.cierre_vars[slug].set("abierto" if (dat.get("cerrado") is not True) else "cerrado")
                     def fmt(m):
                         try:
+                            if m is None:
+                                return ""
                             m = int(m)
                             hh = m // 60
                             mm = m % 60
@@ -768,11 +778,25 @@ class AdminManager:
                         except Exception:
                             return ""
                     if slug in self.horario_vars:
-                        v_or, v_cr, v_ow, v_cw = self.horario_vars[slug]
-                        v_or.set(fmt(dat.get("open_regular_min", 810)))
-                        v_cr.set(fmt(dat.get("close_regular_min", 1375)))
-                        v_ow.set(fmt(dat.get("open_weekend_min", 810)))
-                        v_cw.set(fmt(dat.get("close_weekend_min", 1420)))
+                        horario = dat.get("horario_semanal")
+                        if not isinstance(horario, dict) or not horario:
+                            reg_o = dat.get("open_regular_min", 810)
+                            reg_c = dat.get("close_regular_min", 1375)
+                            we_o = dat.get("open_weekend_min", 810)
+                            we_c = dat.get("close_weekend_min", 1420)
+                            horario = {
+                                "mon": {"open": reg_o, "close": reg_c},
+                                "tue": {"open": reg_o, "close": reg_c},
+                                "wed": {"open": reg_o, "close": reg_c},
+                                "thu": {"open": reg_o, "close": reg_c},
+                                "fri": {"open": we_o, "close": we_c},
+                                "sat": {"open": we_o, "close": we_c},
+                                "sun": {"open": reg_o, "close": reg_c},
+                            }
+                        for day_key, (v_open, v_close) in self.horario_vars[slug].items():
+                            d = horario.get(day_key) or {}
+                            v_open.set(fmt(d.get("open")))
+                            v_close.set(fmt(d.get("close")))
                 else:
                     self.cierre_vars[slug].set("error")
         except Exception:
@@ -797,16 +821,13 @@ class AdminManager:
 
     def guardar_horario(self, sucursal_slug):
         try:
-            v_or, v_cr, v_ow, v_cw = self.horario_vars.get(sucursal_slug, (None, None, None, None))
-            if not v_or: 
+            day_vars = self.horario_vars.get(sucursal_slug)
+            if not day_vars:
                 return
-            data = {
-                "open_regular": v_or.get().strip(),
-                "close_regular": v_cr.get().strip(),
-                "open_weekend": v_ow.get().strip(),
-                "close_weekend": v_cw.get().strip()
-            }
-            r = requests.put(f"{API_URL}/config/{sucursal_slug}", json=data, headers=self._headers(), timeout=10)
+            schedule = {}
+            for day_key, (v_open, v_close) in day_vars.items():
+                schedule[day_key] = {"open": v_open.get().strip(), "close": v_close.get().strip()}
+            r = requests.put(f"{API_URL}/config/{sucursal_slug}", json={"schedule": schedule}, headers=self._headers(), timeout=10)
             if r.status_code == 200:
                 messagebox.showinfo("Listo", "Horario actualizado")
                 self.cargar_estados_cierre()

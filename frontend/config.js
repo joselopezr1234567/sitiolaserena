@@ -27,6 +27,21 @@ window.APP_CONFIG = {
     function isOpenNowFromConfig(cfg) {
         const { weekday, minutes } = getChileParts();
         if (!cfg) return { open: true };
+        const dayKey = weekday === 'Mon' ? 'mon'
+            : weekday === 'Tue' ? 'tue'
+            : weekday === 'Wed' ? 'wed'
+            : weekday === 'Thu' ? 'thu'
+            : weekday === 'Fri' ? 'fri'
+            : weekday === 'Sat' ? 'sat'
+            : weekday === 'Sun' ? 'sun'
+            : null;
+        if (dayKey && cfg.horario_semanal && typeof cfg.horario_semanal === 'object' && cfg.horario_semanal[dayKey]) {
+            const d = cfg.horario_semanal[dayKey];
+            const openMin = Number(d.open);
+            const closeMin = Number(d.close);
+            if (!Number.isFinite(openMin) || !Number.isFinite(closeMin)) return { open: false };
+            return { open: minutes >= openMin && minutes <= closeMin };
+        }
         const openReg = Number(cfg.open_regular_min ?? 810);
         const closeReg = Number(cfg.close_regular_min ?? 1375);
         const openWe = Number(cfg.open_weekend_min ?? 810);
