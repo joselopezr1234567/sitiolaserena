@@ -41,6 +41,42 @@
         border-radius: 50%;
         animation: spin 1s linear infinite;
     }
+    .aviso-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.78);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+        padding: 20px;
+    }
+    .aviso-box {
+        width: min(420px, 100%);
+        background: #c00000;
+        color: #fff;
+        border: 3px solid #fff;
+        border-radius: 4px;
+        padding: 24px 20px;
+        text-align: center;
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+        font-family: Arial, Helvetica, sans-serif;
+    }
+    .aviso-box p {
+        margin: 0 0 18px;
+        font-size: 1.1rem;
+        line-height: 1.5;
+        font-weight: bold;
+    }
+    .aviso-box button {
+        background: #fff;
+        color: #c00000;
+        border: none;
+        padding: 10px 24px;
+        font-weight: bold;
+        font-size: 1rem;
+        cursor: pointer;
+    }
     @keyframes spin { to { transform: rotate(360deg); } }
 </style>
 </head>
@@ -55,19 +91,25 @@
     </header>
 
     <main class="contenedor-principal">
-        <a href="menulaserena.html" class="tarjeta-index" onclick="localStorage.setItem('ultima_sucursal','menulaserena.html')">
+        <a href="menulaserena.html" class="tarjeta-index" data-destino="menulaserena.html">
             <div class="foto-index">
                 <img src="PortadaLaSerena.png" alt="La Serena">
             </div>
             <p class="texto-rojo">La Serena</p>
         </a>
-        <a href="menucoquimbo.html" class="tarjeta-index" onclick="localStorage.setItem('ultima_sucursal','menucoquimbo.html')">
+        <a href="menucoquimbo.html" class="tarjeta-index" data-destino="menucoquimbo.html">
             <div class="foto-index">
                 <img src="PortadaCoquimbo.png" alt="Coquimbo">
             </div>
             <p class="texto-rojo">Coquimbo</p>
         </a>
     </main>
+    <div id="aviso-retiro" class="aviso-overlay">
+        <div class="aviso-box">
+            <p>Esta pagina es solo para agendar retiros en el local</p>
+            <button type="button" id="btn-aceptar-aviso">Aceptar</button>
+        </div>
+    </div>
 
     <script src="config.js"></script>
     <script src="auth-navbar.js"></script>
@@ -75,7 +117,22 @@
     <script>
         (function(){
             const loader = document.getElementById('page-loader');
+            const overlayAviso = document.getElementById('aviso-retiro');
+            const botonAceptar = document.getElementById('btn-aceptar-aviso');
+            const tarjetasSucursal = document.querySelectorAll('.tarjeta-index');
+            let destinoPendiente = '';
+
             function hide() { loader.style.display = 'none'; }
+
+            function mostrarAviso(destino) {
+                destinoPendiente = destino;
+                overlayAviso.style.display = 'flex';
+            }
+
+            function cerrarAviso() {
+                overlayAviso.style.display = 'none';
+            }
+
             function waitImages() {
                 const imgs = Array.from(document.images);
                 if (!imgs.length) { hide(); return; }
@@ -93,6 +150,29 @@
             }
             if (document.readyState === 'complete') waitImages();
             else window.addEventListener('load', waitImages, { once: true });
+
+            tarjetasSucursal.forEach((tarjeta) => {
+                tarjeta.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    mostrarAviso(tarjeta.dataset.destino || tarjeta.getAttribute('href') || 'index.html');
+                });
+            });
+
+            botonAceptar.addEventListener('click', () => {
+                if (!destinoPendiente) {
+                    cerrarAviso();
+                    return;
+                }
+                localStorage.setItem('ultima_sucursal', destinoPendiente);
+                window.location.href = destinoPendiente;
+            });
+
+            overlayAviso.addEventListener('click', (event) => {
+                if (event.target === overlayAviso) {
+                    destinoPendiente = '';
+                    cerrarAviso();
+                }
+            });
         })();
     </script>
 </body>

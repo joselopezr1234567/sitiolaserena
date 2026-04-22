@@ -19,9 +19,30 @@
       Volver
     </button>
   </div>
+  <div id="aviso-retiro" style="position:fixed;inset:0;background:rgba(0,0,0,0.78);display:none;align-items:center;justify-content:center;z-index:10000;padding:20px">
+    <div style="width:min(420px,100%);background:#c00000;color:#fff;border:3px solid #fff;border-radius:4px;padding:24px 20px;text-align:center;box-shadow:0 12px 30px rgba(0,0,0,0.45)">
+      <p style="margin:0 0 18px;font-size:1.1rem;line-height:1.5;font-weight:bold">Esta pagina es solo para agendar retiros en el local</p>
+      <button id="btnAceptarAviso" type="button" style="background:#fff;color:#c00000;border:none;padding:10px 24px;font-weight:bold;font-size:1rem;cursor:pointer">
+        Aceptar
+      </button>
+    </div>
+  </div>
   <script src="config.js"></script>
   <script src="pago.js"></script>
   <script>
+    const overlayAviso = document.getElementById('aviso-retiro');
+    const btnAceptarAviso = document.getElementById('btnAceptarAviso');
+    let accionPendiente = null;
+
+    function mostrarAvisoRetiro(accion) {
+      accionPendiente = accion;
+      overlayAviso.style.display = 'flex';
+    }
+
+    function cerrarAvisoRetiro() {
+      overlayAviso.style.display = 'none';
+    }
+
     function pintarResumen() {
       const cont = document.getElementById('resumen');
       const carrito = JSON.parse(localStorage.getItem('carrito') || '[]');
@@ -47,12 +68,26 @@
       const sucursal = localStorage.getItem('ultima_sucursal')?.includes('coquimbo') ? 'coquimbo' : 'la_serena';
       const usuario = localStorage.getItem('usuario_nombre') || 'Invitado';
       const telefono = localStorage.getItem('usuario_telefono') || '';
-      pagarCarritoConWebpay(sucursal, usuario, telefono);
+      mostrarAvisoRetiro(() => pagarCarritoConWebpay(sucursal, usuario, telefono));
     };
     document.getElementById('btnVolver').onclick = () => {
       const ultima = localStorage.getItem('ultima_sucursal') || 'index.html';
       window.location.href = ultima;
     };
+    btnAceptarAviso.onclick = () => {
+      const accion = accionPendiente;
+      accionPendiente = null;
+      cerrarAvisoRetiro();
+      if (typeof accion === 'function') {
+        accion();
+      }
+    };
+    overlayAviso.addEventListener('click', (event) => {
+      if (event.target === overlayAviso) {
+        accionPendiente = null;
+        cerrarAvisoRetiro();
+      }
+    });
   </script>
 </body>
 </html>
