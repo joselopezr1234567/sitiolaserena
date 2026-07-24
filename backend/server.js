@@ -5,6 +5,10 @@ const cors = require('cors'); // Permite que el frontend se comunique con el bac
 const https = require('https');
 const crypto = require('crypto');
 require('dotenv').config();
+
+// Configuración de zona horaria para PostgreSQL
+process.env.PGTZ = 'America/Santiago';
+
 const {
     WebpayPlus,
     IntegrationCommerceCodes,
@@ -26,6 +30,10 @@ app.use(cors({
         if (corsAllowedOrigins.length === 0) return callback(null, true);
         if (corsAllowedOrigins.includes('*')) return callback(null, true);
         if (corsAllowedOrigins.includes(origin)) return callback(null, true);
+
+        console.error(`🚫 Error de CORS: El origen '${origin}' no está en la lista permitida.`);
+        console.error(`Configuración actual: FRONTEND_URL=${process.env.FRONTEND_URL}, CORS_ORIGIN=${process.env.CORS_ORIGIN}`);
+
         return callback(new Error('Not allowed by CORS'));
     }
 })); // Importante para evitar errores de bloqueo en el navegador
@@ -279,11 +287,7 @@ const poolConfig = process.env.DATABASE_URL
         port: process.env.DB_PORT || 5432,
     };
 const pool = new Pool(poolConfig);
-pool.on('connect', (client) => {
-    setTimeout(() => {
-        client.query("SET TIME ZONE 'America/Santiago'").catch(() => {});
-    }, 0);
-});
+
 // Probar conexión a la base de datos al iniciar
 pool.connect((err, client, release) => {
     if (err) {
