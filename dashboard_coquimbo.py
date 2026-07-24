@@ -114,6 +114,8 @@ class DashboardPizzeria:
         # Tabla de Pedidos
         columns = ("id", "usuario", "telefono", "productos", "total", "estado", "fecha")
         self.tree = ttk.Treeview(root, columns=columns, show="headings")
+
+        
         
         self.tree.heading("id", text="ID")
         self.tree.heading("usuario", text="Cliente")
