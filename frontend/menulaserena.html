@@ -94,7 +94,7 @@
             <p class="texto-menu">Pizzas al Gusto</p>
         </div>
 
-        <div class="opcion-menu" onclick="prepararPedido('bebidas')">
+        <div id="btn-bebidas" class="opcion-menu" onclick="prepararPedido('bebidas')">
             <div class="cuadro-foto-menu"><img src="Bebidas.png"></div>
             <p class="texto-menu">Bebidas</p>
         </div>
@@ -152,6 +152,13 @@
                 if (btnCombo) {
                     const tienePromo = productosDB.some(p => p.categoria === 'promociones');
                     btnCombo.style.display = tienePromo ? 'block' : 'none';
+                }
+
+                // Control de visibilidad del botón de bebidas
+                const btnBebidas = document.getElementById('btn-bebidas');
+                if (btnBebidas) {
+                    const tieneBebidas = productosDB.some(p => p.categoria === 'bebidas');
+                    btnBebidas.style.display = tieneBebidas ? 'block' : 'none';
                 }
 
                 actualizarNavbar();
