@@ -179,6 +179,7 @@ h1 {
     border-radius: 18px;
     overflow: hidden;
     background-color: #111;
+    margin: 0 auto;
 }
 
 .cuadro-foto-menu img {
@@ -186,6 +187,7 @@ h1 {
     height: 100%;
     object-fit: cover;
     border-radius: 18px;
+    display: block;
 }
 
 .texto-menu {
