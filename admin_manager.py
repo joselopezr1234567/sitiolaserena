@@ -7,6 +7,10 @@ import threading
 import sys
 import subprocess
 import time
+import base64
+import calendar
+from PIL import Image, ImageTk
+from tkinter import filedialog
 
 API_URL = os.environ.get("API_URL", "https://sitiolaserena.onrender.com/api")
 ADMIN_API_TOKEN = os.environ.get("ADMIN_API_TOKEN", "")
@@ -256,6 +260,7 @@ class AdminManager:
 
         tk.Button(menu_frame, text="🍕 PIZZERÍA LA SERENA", command=lambda: self.abrir_gestion_sucursal("la_serena"), bg="#FF0000", **btn_style).pack(pady=15)
         tk.Button(menu_frame, text="🍕 PIZZERÍA COQUIMBO", command=lambda: self.abrir_gestion_sucursal("coquimbo"), bg="#FF0000", **btn_style).pack(pady=15)
+        tk.Button(menu_frame, text="📢 PROMOCIONES", command=self.abrir_gestion_promociones, bg="#FF8C00", **btn_style).pack(pady=15)
         tk.Button(menu_frame, text="👥 GESTIONAR USUARIOS", command=self.abrir_gestion_usuarios, bg="#555", **btn_style).pack(pady=15)
         tk.Button(menu_frame, text="⏱️ CIERRE DE LOCALES", command=self.abrir_cierre_locales, bg="#333", **btn_style).pack(pady=15)
         
@@ -636,6 +641,290 @@ class AdminManager:
                 self.form_frame.pack_forget()
             except:
                 messagebox.showerror("Error", "No se pudo eliminar")
+
+    def abrir_gestion_promociones(self):
+        self.limpiar_pantalla()
+
+        header = tk.Frame(self.root, bg="#333", height=70)
+        header.pack(fill=tk.X)
+        tk.Button(header, text="ATRÁS", command=self.mostrar_menu_principal, bg="black", fg="black", font=("Arial", 12, "bold"), width=10).pack(side=tk.LEFT, padx=20, pady=15)
+        tk.Label(header, text="GESTIÓN DE PROMOCIONES", fg="white", bg="#333", font=("Arial", 20, "bold")).pack(side=tk.LEFT, padx=60)
+        tk.Button(header, text="➕ NUEVA PROMOCIÓN", command=self._promo_nueva, bg="#00FF00", fg="black", font=("Arial", 12, "bold"), width=18).pack(side=tk.RIGHT, padx=20)
+
+        scroll_wrap, scroll_inner = self._scroll_container(self.root)
+        scroll_wrap.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
+
+        content = tk.Frame(scroll_inner, bg="#1a1a1a")
+        content.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
+
+        # Formulario
+        form = tk.LabelFrame(content, text="DATOS DE LA PROMOCIÓN", bg="#222", fg="#FFD700", font=("Arial", 13, "bold"), padx=20, pady=15)
+        form.pack(fill=tk.X, pady=(0, 20))
+
+        self.promo_vars = {
+            "id": tk.StringVar(),
+            "titulo": tk.StringVar(),
+            "precio": tk.StringVar(),
+        }
+        self.promo_imagen_b64 = None
+        self.promo_imagen_tk = None
+
+        fila1 = tk.Frame(form, bg="#222"); fila1.pack(fill=tk.X, pady=5)
+        tk.Label(fila1, text="Título:", bg="#222", fg="white", font=("Arial", 12, "bold"), width=12, anchor="w").pack(side=tk.LEFT)
+        tk.Entry(fila1, textvariable=self.promo_vars["titulo"], font=("Arial", 14), width=40).pack(side=tk.LEFT, padx=10)
+
+        fila2 = tk.Frame(form, bg="#222"); fila2.pack(fill=tk.X, pady=5)
+        tk.Label(fila2, text="Precio ($):", bg="#222", fg="white", font=("Arial", 12, "bold"), width=12, anchor="w").pack(side=tk.LEFT)
+        tk.Entry(fila2, textvariable=self.promo_vars["precio"], font=("Arial", 14), width=15).pack(side=tk.LEFT, padx=10)
+
+        fila3 = tk.Frame(form, bg="#222"); fila3.pack(fill=tk.X, pady=5)
+        tk.Label(fila3, text="Descripción:", bg="#222", fg="white", font=("Arial", 12, "bold"), width=12, anchor="nw").pack(side=tk.LEFT)
+        self.promo_txt_desc = tk.Text(fila3, height=3, width=50, font=("Arial", 12))
+        self.promo_txt_desc.pack(side=tk.LEFT, padx=10)
+
+        # Foto
+        fila4 = tk.Frame(form, bg="#222"); fila4.pack(fill=tk.X, pady=10)
+        tk.Label(fila4, text="Foto producto:", bg="#222", fg="white", font=("Arial", 12, "bold"), width=12, anchor="nw").pack(side=tk.LEFT)
+        self.promo_img_lbl = tk.Label(fila4, text="Sin imagen", bg="#111", fg="#777", width=25, height=8, relief=tk.GROOVE)
+        self.promo_img_lbl.pack(side=tk.LEFT, padx=10)
+        btns_img = tk.Frame(fila4, bg="#222"); btns_img.pack(side=tk.LEFT, padx=10)
+        tk.Button(btns_img, text="📁 SUBIR FOTO", command=self._promo_subir_foto, bg="#555", fg="black", font=("Arial", 11, "bold")).pack(pady=3)
+        tk.Button(btns_img, text="✖ QUITAR FOTO", command=self._promo_quitar_foto, bg="#333", fg="black", font=("Arial", 11, "bold")).pack(pady=3)
+
+        # Sucursales
+        fila5 = tk.Frame(form, bg="#222"); fila5.pack(fill=tk.X, pady=5)
+        tk.Label(fila5, text="Sucursales:", bg="#222", fg="white", font=("Arial", 12, "bold"), width=12, anchor="w").pack(side=tk.LEFT)
+        self.promo_var_suc_ambas = tk.BooleanVar(value=True)
+        self.promo_var_suc_ls = tk.BooleanVar(value=False)
+        self.promo_var_suc_cq = tk.BooleanVar(value=False)
+        def _toggle_suc():
+            if self.promo_var_suc_ambas.get():
+                self.promo_var_suc_ls.set(True)
+                self.promo_var_suc_cq.set(True)
+            else:
+                self.promo_var_suc_ls.set(False)
+                self.promo_var_suc_cq.set(False)
+        tk.Checkbutton(fila5, text="AMBAS", variable=self.promo_var_suc_ambas, command=_toggle_suc, bg="#222", fg="#FFD700", font=("Arial", 12, "bold"), selectcolor="#1a1a1a").pack(side=tk.LEFT, padx=5)
+        tk.Checkbutton(fila5, text="LA SERENA", variable=self.promo_var_suc_ls, bg="#222", fg="white", font=("Arial", 12), selectcolor="#1a1a1a").pack(side=tk.LEFT, padx=5)
+        tk.Checkbutton(fila5, text="COQUIMBO", variable=self.promo_var_suc_cq, bg="#222", fg="white", font=("Arial", 12), selectcolor="#1a1a1a").pack(side=tk.LEFT, padx=5)
+
+        # Días
+        fila6 = tk.Frame(form, bg="#222"); fila6.pack(fill=tk.X, pady=10)
+        tk.Label(fila6, text="Días de la semana:", bg="#222", fg="white", font=("Arial", 12, "bold"), width=15, anchor="w").pack(side=tk.LEFT)
+        self.promo_dias_vars = {}
+        dias_abr = ["LUN", "MAR", "MIÉ", "JUE", "VIE", "SÁB", "DOM"]
+        dias_keys = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
+        for abr, key in zip(dias_abr, dias_keys):
+            v = tk.BooleanVar(value=False)
+            self.promo_dias_vars[key] = v
+            tk.Checkbutton(fila6, text=abr, variable=v, bg="#222", fg="white", font=("Arial", 11, "bold"), selectcolor="#1a1a1a").pack(side=tk.LEFT, padx=4)
+
+        # Botones de acción
+        fila_btns = tk.Frame(form, bg="#222"); fila_btns.pack(fill=tk.X, pady=10)
+        tk.Button(fila_btns, text="💾 GUARDAR", command=self._promo_guardar, bg="#00FF00", fg="black", font=("Arial", 13, "bold"), width=15, height=2).pack(side=tk.LEFT, padx=5)
+        tk.Button(fila_btns, text="⏸ PAUSAR / ▶ ACTIVAR", command=self._promo_toggle, bg="#FF8C00", fg="black", font=("Arial", 13, "bold"), width=20, height=2).pack(side=tk.LEFT, padx=5)
+        tk.Button(fila_btns, text="🗑 ELIMINAR", command=self._promo_eliminar, bg="#FF0000", fg="black", font=("Arial", 13, "bold"), width=12, height=2).pack(side=tk.LEFT, padx=5)
+        tk.Button(fila_btns, text="✖ LIMPIAR", command=self._promo_nueva, bg="#555", fg="black", font=("Arial", 13, "bold"), width=10, height=2).pack(side=tk.LEFT, padx=5)
+
+        # Lista de promociones existentes
+        tk.Label(content, text="PROMOCIONES EXISTENTES (pulsa para editar):", font=("Arial", 13, "bold"), fg="white", bg="#1a1a1a").pack(anchor=tk.W)
+        self.promo_tree = ttk.Treeview(content, columns=("titulo", "precio", "sucursales", "dias", "estado"), show="headings", height=8)
+        self.promo_tree.heading("titulo", text="TÍTULO"); self.promo_tree.heading("precio", text="PRECIO")
+        self.promo_tree.heading("sucursales", text="SUCURSALES"); self.promo_tree.heading("dias", text="DÍAS")
+        self.promo_tree.heading("estado", text="ESTADO")
+        self.promo_tree.column("titulo", width=220); self.promo_tree.column("precio", width=90, anchor="center")
+        self.promo_tree.column("sucursales", width=180); self.promo_tree.column("dias", width=200)
+        self.promo_tree.column("estado", width=100, anchor="center")
+        self.promo_tree.pack(fill=tk.X, pady=10)
+        self.promo_tree.bind("<<TreeviewSelect>>", self._promo_seleccionar)
+
+        self._promo_cargar_lista()
+
+    DIAS_ABREVIATURAS = {"mon": "Lun", "tue": "Mar", "wed": "Mié", "thu": "Jue", "fri": "Vie", "sat": "Sáb", "sun": "Dom"}
+
+    def _promo_subir_foto(self):
+        path = filedialog.askopenfilename(title="Elegir foto del producto", filetypes=[("Imágenes", "*.jpg *.jpeg *.png *.gif *.webp *.bmp"), ("Todos", "*.*")])
+        if not path:
+            return
+        try:
+            with open(path, "rb") as f:
+                data = f.read()
+            if len(data) > 3 * 1024 * 1024:
+                messagebox.showwarning("Muy grande", "La imagen supera 3 MB. Elige una más liviana.")
+                return
+            ext = os.path.splitext(path)[1].lower().lstrip(".") or "jpg"
+            if ext == "jpeg": ext = "jpg"
+            self.promo_imagen_b64 = f"data:image/{ext};base64," + base64.b64encode(data).decode("ascii")
+            self._promo_mostrar_preview(path)
+        except Exception as e:
+            messagebox.showerror("Error", f"No se pudo cargar la imagen: {e}")
+
+    def _promo_mostrar_preview(self, path):
+        try:
+            img = Image.open(path)
+            img.thumbnail((180, 140))
+            self.promo_imagen_tk = ImageTk.PhotoImage(img)
+            self.promo_img_lbl.configure(image=self.promo_imagen_tk, text="", width=180, height=140)
+        except Exception:
+            self.promo_img_lbl.configure(text="Imagen cargada ✓")
+
+    def _promo_quitar_foto(self):
+        self.promo_imagen_b64 = None
+        self.promo_imagen_tk = None
+        self.promo_img_lbl.configure(image="", text="Sin imagen", width=25, height=8)
+
+    def _promo_nueva(self):
+        if hasattr(self, "promo_vars"):
+            self.promo_vars["id"].set("")
+            self.promo_vars["titulo"].set("")
+            self.promo_vars["precio"].set("")
+            self.promo_txt_desc.delete("1.0", tk.END)
+            self.promo_var_suc_ambas.set(True)
+            self.promo_var_suc_ls.set(True)
+            self.promo_var_suc_cq.set(True)
+            for v in self.promo_dias_vars.values():
+                v.set(False)
+            self._promo_quitar_foto()
+            for sel in self.promo_tree.selection():
+                self.promo_tree.selection_remove(sel)
+
+    def _promo_seleccionar(self, _evt=None):
+        sel = self.promo_tree.selection()
+        if not sel:
+            return
+        pid = self.promo_tree.item(sel[0])["values"][0]
+        prod = next((p for p in self._promo_lista if str(p.get("id")) == str(pid)), None)
+        if not prod:
+            return
+        self.promo_vars["id"].set(str(prod.get("id", "")))
+        self.promo_vars["titulo"].set(str(prod.get("titulo", "")))
+        self.promo_vars["precio"].set(str(prod.get("precio", "")))
+        self.promo_txt_desc.delete("1.0", tk.END)
+        self.promo_txt_desc.insert("1.0", str(prod.get("descripcion") or ""))
+        sucs = prod.get("sucursales") or []
+        sucs = [str(s).strip().lower() for s in sucs]
+        self.promo_var_suc_ls.set("la_serena" in sucs)
+        self.promo_var_suc_cq.set("coquimbo" in sucs)
+        self.promo_var_suc_ambas.set("la_serena" in sucs and "coquimbo" in sucs)
+        dias = prod.get("dias") or []
+        for key, v in self.promo_dias_vars.items():
+            v.set(key in dias)
+        # Preview de imagen desde base64
+        self.promo_imagen_b64 = prod.get("imagen") or None
+        self.promo_imagen_tk = None
+        if self.promo_imagen_b64:
+            try:
+                raw = self.promo_imagen_b64.split(",", 1)[-1]
+                from io import BytesIO
+                img = Image.open(BytesIO(base64.b64decode(raw)))
+                img.thumbnail((180, 140))
+                self.promo_imagen_tk = ImageTk.PhotoImage(img)
+                self.promo_img_lbl.configure(image=self.promo_imagen_tk, text="", width=180, height=140)
+            except Exception:
+                self.promo_img_lbl.configure(image="", text="Imagen guardada ✓", width=25, height=8)
+        else:
+            self._promo_quitar_foto()
+
+    def _promo_cargar_lista(self):
+        for i in self.promo_tree.get_children():
+            self.promo_tree.delete(i)
+        try:
+            res = requests.get(f"{API_URL}/admin/promociones", headers=self._headers(), timeout=10)
+            if res.status_code == 200:
+                self._promo_lista = res.json()
+            else:
+                self._promo_lista = []
+        except Exception:
+            self._promo_lista = []
+        for p in self._promo_lista:
+            sucs = p.get("sucursales") or []
+            suc_txt = "Ambas" if len(sucs) >= 2 else (", ".join(suc_txt_ for suc_txt_ in map(str, sucs)).replace("_", " ").title() if sucs else "-")
+            dias_txt = ", ".join(self.DIAS_ABREVIATURAS.get(d, d) for d in (p.get("dias") or [])) or "-"
+            estado = "▶ ACTIVA" if p.get("activa", True) else "⏸ PAUSADA"
+            self.promo_tree.insert("", tk.END, values=(p.get("id"), p.get("titulo"), f"${p.get('precio', 0)}", suc_txt, dias_txt, estado))
+
+    def _promo_datos_formulario(self):
+        titulo = self.promo_vars["titulo"].get().strip()
+        precio_raw = self.promo_vars["precio"].get().strip().replace(".", "").replace(",", "")
+        if not titulo or not precio_raw.isdigit():
+            messagebox.showwarning("Atención", "Escribe el TÍTULO y el PRECIO (solo números).")
+            return None
+        sucs = []
+        if self.promo_var_suc_ls.get(): sucs.append("la_serena")
+        if self.promo_var_suc_cq.get(): sucs.append("coquimbo")
+        if not sucs:
+            messagebox.showwarning("Atención", "Elige al menos una sucursal.")
+            return None
+        dias = [k for k, v in self.promo_dias_vars.items() if v.get()]
+        if not dias:
+            messagebox.showwarning("Atención", "Elige al menos un día de la semana.")
+            return None
+        return {
+            "titulo": titulo.upper(),
+            "precio": int(precio_raw),
+            "descripcion": self.promo_txt_desc.get("1.0", tk.END).strip(),
+            "sucursales": sucs,
+            "dias": dias,
+            "activa": True,
+        }
+
+    def _promo_guardar(self):
+        data = self._promo_datos_formulario()
+        if not data:
+            return
+        if self.promo_imagen_b64:
+            data["imagen"] = self.promo_imagen_b64
+        pid = self.promo_vars["id"].get().strip()
+        try:
+            if pid:
+                res = requests.put(f"{API_URL}/admin/promociones/{pid}", json=data, headers=self._headers(), timeout=15)
+            else:
+                res = requests.post(f"{API_URL}/admin/promociones", json=data, headers=self._headers(), timeout=15)
+            if res.status_code == 200:
+                messagebox.showinfo("Listo", "¡Promoción guardada! Se mostrará automáticamente los días elegidos.")
+                self._promo_nueva()
+                self._promo_cargar_lista()
+            else:
+                messagebox.showerror("Error", f"No se pudo guardar ({res.status_code})")
+        except Exception:
+            messagebox.showerror("Error", "No hay conexión con el servidor")
+
+    def _promo_toggle(self):
+        pid = self.promo_vars["id"].get().strip()
+        if not pid:
+            messagebox.showwarning("Atención", "Selecciona una promoción de la lista para pausar/activar.")
+            return
+        prod = next((p for p in self._promo_lista if str(p.get("id")) == pid), None)
+        if not prod:
+            return
+        nuevo_estado = not bool(prod.get("activa", True))
+        try:
+            res = requests.put(f"{API_URL}/admin/promociones/{pid}", json={"activa": nuevo_estado}, headers=self._headers(), timeout=10)
+            if res.status_code == 200:
+                messagebox.showinfo("Listo", "Promoción ACTIVADA" if nuevo_estado else "Promoción PAUSADA")
+                self._promo_cargar_lista()
+            else:
+                messagebox.showerror("Error", "No se pudo cambiar el estado")
+        except Exception:
+            messagebox.showerror("Error", "No hay conexión con el servidor")
+
+    def _promo_eliminar(self):
+        pid = self.promo_vars["id"].get().strip()
+        if not pid:
+            messagebox.showwarning("Atención", "Selecciona una promoción de la lista para eliminar.")
+            return
+        if not messagebox.askyesno("Confirmar", "¿Seguro que quieres ELIMINAR esta promoción?"):
+            return
+        try:
+            res = requests.delete(f"{API_URL}/admin/promociones/{pid}", headers=self._headers(), timeout=10)
+            if res.status_code == 200:
+                messagebox.showinfo("Listo", "Promoción eliminada")
+                self._promo_nueva()
+                self._promo_cargar_lista()
+            else:
+                messagebox.showerror("Error", "No se pudo eliminar")
+        except Exception:
+            messagebox.showerror("Error", "No hay conexión con el servidor")
 
     def abrir_gestion_usuarios(self):
         self.limpiar_pantalla()

@@ -316,6 +316,34 @@ async function initProductosSchema() {
 
 initProductosSchema().catch((e) => console.error('Error inicializando schema de productos:', e.message));
 
+async function initPromocionesSchema() {
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS promociones (
+            id SERIAL PRIMARY KEY,
+            titulo TEXT NOT NULL,
+            descripcion TEXT NOT NULL DEFAULT '',
+            precio INTEGER NOT NULL DEFAULT 0,
+            imagen TEXT,
+            sucursales JSONB NOT NULL DEFAULT '[]'::jsonb,
+            dias JSONB NOT NULL DEFAULT '[]'::jsonb,
+            activa BOOLEAN NOT NULL DEFAULT TRUE,
+            creada_en TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+    `);
+    await pool.query(`ALTER TABLE promociones ADD COLUMN IF NOT EXISTS imagen TEXT`);
+    await pool.query(`ALTER TABLE promociones ADD COLUMN IF NOT EXISTS sucursales JSONB NOT NULL DEFAULT '[]'::jsonb`);
+    await pool.query(`ALTER TABLE promociones ADD COLUMN IF NOT EXISTS dias JSONB NOT NULL DEFAULT '[]'::jsonb`);
+    await pool.query(`ALTER TABLE promociones ADD COLUMN IF NOT EXISTS activa BOOLEAN NOT NULL DEFAULT TRUE`);
+}
+
+initPromocionesSchema().catch((e) => console.error('Error inicializando schema de promociones:', e.message));
+
+function getChileWeekdayKey() {
+    const fmt = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Santiago', weekday: 'short' });
+    const map = { Mon: 'mon', Tue: 'tue', Wed: 'wed', Thu: 'thu', Fri: 'fri', Sat: 'sat', Sun: 'sun' };
+    return map[fmt.format(new Date())] || 'mon';
+}
+
 async function initAcompanamientosBootstrap() {
     const defaults = [
         { nombre: "PALITOS DE AJO", descripcion: "8 Palitos de Ajo + salsa de tomate", precio: 4000 },
@@ -488,6 +516,99 @@ app.get('/api/productos/:sucursal', async (req, res) => {
     } catch (err) {
         console.error(err.message);
         res.status(500).json({ error: "Error al obtener los productos" });
+    }
+});
+
+// Promociones públicas y vigentes para una sucursal (según día de hoy en Chile)
+app.get('/api/promociones/:sucursal', async (req, res) => {
+    const suc = String(req.params.sucursal || '').trim().toLowerCase().replace(/\s+/g, '_');
+    const hoy = getChileWeekdayKey();
+    try {
+        const rows = await pool.query(
+            "SELECT * FROM promociones WHERE activa = TRUE ORDER BY creada_en DESC"
+        );
+        const out = rows.rows.filter(p => {
+            const sucs = Array.isArray(p.sucursales) ? p.sucursales : [];
+            const dias = Array.isArray(p.dias) ? p.dias : [];
+            const matchSuc = sucs.some(s => String(s).trim().toLowerCase().replace(/\s+/g, '_') === suc);
+            return matchSuc && dias.includes(hoy);
+        }).map(p => ({
+            id: p.id,
+            titulo: p.titulo,
+            descripcion: p.descripcion,
+            precio: p.precio,
+            imagen: p.imagen,
+            dias: p.dias,
+            sucursales: p.sucursales
+        }));
+        res.json(out);
+    } catch (err) {
+        console.error("Error obteniendo promociones:", err?.message || err);
+        res.status(500).json({ error: "Error al obtener promociones" });
+    }
+});
+
+// --- CRUD PROMOCIONES (ADMIN) ---
+app.get('/api/admin/promociones', async (req, res) => {
+    try {
+        const rows = await pool.query("SELECT * FROM promociones ORDER BY creada_en DESC");
+        res.json(rows.rows);
+    } catch (err) {
+        res.status(500).json({ error: "Error al obtener promociones" });
+    }
+});
+
+app.post('/api/admin/promociones', async (req, res) => {
+    const { titulo, descripcion, precio, imagen, sucursales, dias, activa } = req.body;
+    if (!titulo) return res.status(400).json({ error: "Falta título" });
+    try {
+        const nuevo = await pool.query(
+            "INSERT INTO promociones (titulo, descripcion, precio, imagen, sucursales, dias, activa) VALUES ($1,$2,$3,$4,$5::jsonb,$6::jsonb,$7) RETURNING *",
+            [titulo, descripcion || '', parseInt(precio, 10) || 0, imagen || null, JSON.stringify(sucursales || []), JSON.stringify(dias || []), activa !== false]
+        );
+        res.json(nuevo.rows[0]);
+    } catch (err) {
+        console.error("Error creando promoción:", err?.message || err);
+        res.status(500).json({ error: "Error al crear promoción" });
+    }
+});
+
+app.put('/api/admin/promociones/:id', async (req, res) => {
+    const { id } = req.params;
+    const { titulo, descripcion, precio, imagen, sucursales, dias, activa } = req.body;
+    try {
+        const actualizado = await pool.query(
+            `UPDATE promociones SET
+                titulo = COALESCE($1, titulo),
+                descripcion = COALESCE($2, descripcion),
+                precio = COALESCE($3, precio),
+                imagen = COALESCE($4, imagen),
+                sucursales = COALESCE($5::jsonb, sucursales),
+                dias = COALESCE($6::jsonb, dias),
+                activa = COALESCE($7, activa)
+             WHERE id = $8 RETURNING *`,
+            [titulo || null, descripcion !== undefined ? descripcion : null,
+             precio !== undefined ? (parseInt(precio, 10) || 0) : null,
+             imagen || null,
+             sucursales ? JSON.stringify(sucursales) : null,
+             dias ? JSON.stringify(dias) : null,
+             activa === undefined ? null : !!activa, id]
+        );
+        if (actualizado.rows.length === 0) return res.status(404).json({ error: "Promoción no encontrada" });
+        res.json(actualizado.rows[0]);
+    } catch (err) {
+        console.error("Error actualizando promoción:", err?.message || err);
+        res.status(500).json({ error: "Error al actualizar promoción" });
+    }
+});
+
+app.delete('/api/admin/promociones/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        await pool.query("DELETE FROM promociones WHERE id = $1", [id]);
+        res.json({ mensaje: "Promoción eliminada" });
+    } catch (err) {
+        res.status(500).json({ error: "Error al eliminar promoción" });
     }
 });
 

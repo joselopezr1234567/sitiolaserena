@@ -61,6 +61,33 @@
             animation: spin 1s linear infinite;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
+        #promo-container {
+            max-width: 900px;
+            margin: 20px auto;
+            padding: 0 15px;
+        }
+        #promo-container h2 {
+            color: #ffd700;
+            text-align: center;
+            margin-bottom: 15px;
+        }
+        .promo-card {
+            background: rgba(255,255,255,0.08);
+            border: 2px solid #ffd700;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 18px;
+            text-align: center;
+            color: #fff;
+        }
+        .promo-card img {
+            max-width: 100%;
+            max-height: 260px;
+            border-radius: 8px;
+        }
+        .promo-card h3 { color: #ffd700; margin: 10px 0 5px; }
+        .promo-card .promo-desc { font-size: 0.95rem; color: #eee; }
+        .promo-card .promo-precio { font-size: 1.4rem; font-weight: bold; color: #fff; margin-top: 8px; }
     </style>
 </head>
 <body class="bg-conchevino page-menu">
@@ -104,6 +131,8 @@
             <p class="texto-menu">Acompañamientos</p>
         </div>
     </main>
+
+    <div id="promo-container"></div>
 
     <div class="footer-btns">
         <a href="index.html" class="btn-volver">← Volver a Menú Principal</a>
@@ -163,6 +192,7 @@
 
                 actualizarNavbar();
                 productosCargados = true;
+                cargarPromociones();
                 if (pendienteTipo) {
                     const t = pendienteTipo;
                     pendienteTipo = null;
@@ -170,6 +200,31 @@
                 }
             } catch (e) {
                 console.error("Error conectando al servidor:", e);
+            }
+        }
+
+        async function cargarPromociones() {
+            try {
+                const baseUrl = (window.APP_CONFIG && window.APP_CONFIG.API_BASE_URL) ? window.APP_CONFIG.API_BASE_URL : 'http://localhost:3000';
+                const res = await fetch(`${baseUrl}/api/promociones/la_serena?t=` + Date.now());
+                if (!res.ok) return;
+                const promos = await res.json();
+                const cont = document.getElementById('promo-container');
+                if (!cont) return;
+                if (!promos || promos.length === 0) {
+                    cont.innerHTML = '';
+                    return;
+                }
+                cont.innerHTML = '<h2>🔥 PROMOCIONES DEL DÍA</h2>' + promos.map(p => `
+                    <div class="promo-card">
+                        ${p.imagen ? `<img src="${p.imagen}" alt="${p.titulo}">` : ''}
+                        <h3>${p.titulo}</h3>
+                        ${p.descripcion ? `<div class="promo-desc">${p.descripcion}</div>` : ''}
+                        <div class="promo-precio">$${Number(p.precio).toLocaleString('es-CL')}</div>
+                    </div>
+                `).join('');
+            } catch (e) {
+                console.error('Error cargando promociones:', e);
             }
         }
 
